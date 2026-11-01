@@ -1,0 +1,5 @@
+"file_type","entity_count","file_size_mb","file_size_bytes","parse_time_ms","response_size_bytes","status"
+"STL_ASCII","50000","7.18","7532053","3573.3","8100244","SUCCESS"
+"STL_ASCII","180000","25.86","27115255","13044.45","29160247","SUCCESS"
+"STL_ASCII","270000","38.79","40672855","20789.51","43740248","SUCCESS"
+"ANSYS_CSV","500000","13.84","14510530","4281.23","22122474","SUCCESS"

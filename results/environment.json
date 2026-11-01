@@ -1,0 +1,18 @@
+{
+  "cpu_model": "13th Gen Intel(R) Core(TM) i5-13420H",
+  "physical_cores": 8,
+  "logical_cores": 12,
+  "total_ram_gb": 15.7108,
+  "compiler_info": "GNU 16.2.0",
+  "optimization_flags": "-O3 -DNDEBUG -O3",
+  "workload": {
+    "case_count": 20000,
+    "mesh_size_N": 200,
+    "seed": 42,
+    "repetitions": 5
+  },
+  "batch_generation_ms": 2.1414,
+  "warmup_ms": 258.657,
+  "launch_to_ready_ms": 0,
+  "max_serial_parallel_diff": 0
+}
