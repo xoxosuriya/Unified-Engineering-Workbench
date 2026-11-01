@@ -169,12 +169,16 @@ try {
         }
     }
 
-    # Test /api/shutdown endpoint
+    # Test /api/shutdown endpoint (requires valid X-Session-Token)
     try {
-        $shutResp = Invoke-WebRequest -Uri "http://127.0.0.1:$port/api/shutdown" -Method POST -UseBasicParsing -TimeoutSec 5
+        $stResp = Invoke-WebRequest -Uri "http://127.0.0.1:$port/api/status" -UseBasicParsing -TimeoutSec 5
+        $stObj = $stResp.Content | ConvertFrom-Json
+        $token = $stObj.session_token
+
+        $shutResp = Invoke-WebRequest -Uri "http://127.0.0.1:$port/api/shutdown" -Method POST -Headers @{ "X-Session-Token" = $token } -UseBasicParsing -TimeoutSec 5
         $jsonObj = $shutResp.Content | ConvertFrom-Json
         if ($shutResp.StatusCode -ne 404 -and $null -ne $jsonObj) {
-            Write-Host "  [PASS] POST /api/shutdown -> HTTP $($shutResp.StatusCode) (valid JSON)" -ForegroundColor Green
+            Write-Host "  [PASS] POST /api/shutdown (with session token) -> HTTP $($shutResp.StatusCode) (valid JSON)" -ForegroundColor Green
             $passed++
         } else {
             Write-Host "  [FAIL] POST /api/shutdown -> Non-JSON or 404" -ForegroundColor Red

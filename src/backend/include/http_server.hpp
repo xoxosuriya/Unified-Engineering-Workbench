@@ -16,6 +16,7 @@ struct HttpRequest {
     std::string query;
     std::string body;
     std::string content_type;
+    std::map<std::string, std::string> headers;
 };
 
 struct HttpResponse {
@@ -35,6 +36,7 @@ public:
 
     int get_actual_port() const { return actual_port_; }
     std::string get_base_url() const;
+    std::string get_session_token() const { return session_token_; }
 
 private:
     void listen_loop();
@@ -45,6 +47,7 @@ private:
     int preferred_port_;
     int actual_port_ = 0;
     std::string web_root_dir_;
+    std::string session_token_;
 
     std::atomic<bool> is_running_{false};
     std::thread server_thread_;

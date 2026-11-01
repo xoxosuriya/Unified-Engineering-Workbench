@@ -14,10 +14,13 @@
 #include <cstring>
 #include <mutex>
 #include <cmath>
+#include <random>
+#include <iomanip>
 
 #if defined(_WIN32)
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include <windows.h>
 #pragma comment(lib, "ws2_32.lib")
 #else
 #include <sys/socket.h>
@@ -31,6 +34,41 @@
 #endif
 
 namespace workbench {
+
+static std::string get_executable_dir() {
+#if defined(_WIN32)
+    wchar_t buf[MAX_PATH];
+    DWORD len = GetModuleFileNameW(nullptr, buf, MAX_PATH);
+    if (len > 0) {
+        std::wstring ws(buf);
+        size_t pos = ws.find_last_of(L"\\/");
+        if (pos != std::wstring::npos) {
+            ws = ws.substr(0, pos);
+        }
+        int size_needed = WideCharToMultiByte(CP_UTF8, 0, ws.c_str(), (int)ws.size(), NULL, 0, NULL, NULL);
+        std::string str(size_needed, 0);
+        WideCharToMultiByte(CP_UTF8, 0, ws.c_str(), (int)ws.size(), &str[0], size_needed, NULL, NULL);
+        for (char& c : str) {
+            if (c == '\\') c = '/';
+        }
+        return str;
+    }
+#endif
+    return ".";
+}
+
+static std::string resolve_data_file(const std::string& filename) {
+    std::string exe_dir = get_executable_dir();
+    std::string c1 = exe_dir + "/data/" + filename;
+    std::ifstream f1(c1, std::ios::binary);
+    if (f1.good()) return c1;
+
+    std::string c2 = exe_dir + "/../data/" + filename;
+    std::ifstream f2(c2, std::ios::binary);
+    if (f2.good()) return c2;
+
+    return c1;
+}
 
 static inline std::string trim_h(const std::string& str) {
     size_t first = str.find_first_not_of(" \t\r\n");
@@ -128,6 +166,14 @@ static std::string get_mime_type(const std::string& path) {
 HttpServer::HttpServer(const std::string& host, int port, const std::string& web_root_dir)
     : host_(host), preferred_port_(port), web_root_dir_(web_root_dir) {
     hw_manager_ = std::make_unique<EmbeddedHardwareManager>();
+
+    // Generate secure per-process session token
+    std::random_device rd;
+    std::mt19937_64 gen(rd());
+    std::uniform_int_distribution<uint64_t> dis;
+    std::ostringstream ss;
+    ss << std::hex << std::setfill('0') << std::setw(16) << dis(gen) << std::setw(16) << dis(gen);
+    session_token_ = ss.str();
 }
 
 HttpServer::~HttpServer() {
@@ -250,14 +296,12 @@ void HttpServer::handle_client(uintptr_t client_socket) {
         else if (resp.status_code == 400) ss << "Bad Request";
         else if (resp.status_code == 403) ss << "Forbidden";
         else if (resp.status_code == 404) ss << "Not Found";
+        else if (resp.status_code == 409) ss << "Conflict";
         else if (resp.status_code == 413) ss << "Payload Too Large";
         else ss << "Server Error";
         ss << "\r\n";
         ss << "Content-Type: " << resp.content_type << "\r\n";
         ss << "Content-Length: " << resp.body.size() << "\r\n";
-        ss << "Access-Control-Allow-Origin: *\r\n";
-        ss << "Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n";
-        ss << "Access-Control-Allow-Headers: Content-Type\r\n";
         ss << "Connection: close\r\n\r\n";
         ss << resp.body;
         std::string full_resp = ss.str();
@@ -297,19 +341,61 @@ void HttpServer::handle_client(uintptr_t client_socket) {
             req.path = req.path.substr(0, q_pos);
         }
 
-        // Parse headers
+        // Parse headers case-insensitively
         std::string line;
         size_t content_length = 0;
         while (std::getline(stream, line)) {
             std::string trimmed = trim_h(line);
-            if (trimmed.rfind("Content-Length:", 0) == 0) {
-                try {
-                    content_length = std::stoull(trim_h(trimmed.substr(15)));
-                } catch (...) {
-                    content_length = 0;
+            size_t colon = trimmed.find(':');
+            if (colon != std::string::npos) {
+                std::string header_name = trim_h(trimmed.substr(0, colon));
+                std::string header_val = trim_h(trimmed.substr(colon + 1));
+                std::string lower_name = header_name;
+                std::transform(lower_name.begin(), lower_name.end(), lower_name.begin(), [](unsigned char c) { return std::tolower(c); });
+                req.headers[lower_name] = header_val;
+
+                if (lower_name == "content-length") {
+                    try {
+                        content_length = std::stoull(header_val);
+                    } catch (...) {
+                        content_length = 0;
+                    }
+                } else if (lower_name == "content-type") {
+                    req.content_type = header_val;
                 }
-            } else if (trimmed.rfind("Content-Type:", 0) == 0) {
-                req.content_type = trim_h(trimmed.substr(13));
+            }
+        }
+
+        // Security check: Validate Host header (reject any request whose Host is not 127.0.0.1:<port> or localhost:<port>)
+        auto host_it = req.headers.find("host");
+        if (host_it != req.headers.end()) {
+            std::string h = trim_h(host_it->second);
+            std::string exp1 = "127.0.0.1:" + std::to_string(actual_port_);
+            std::string exp2 = "localhost:" + std::to_string(actual_port_);
+            if (h != exp1 && h != exp2) {
+                HttpResponse resp;
+                resp.status_code = 403;
+                resp.content_type = "application/json";
+                resp.body = "{\"error\":\"Forbidden: Invalid Host header: " + escape_json(h) + "\",\"status\":403}";
+                send_resp(resp);
+                return;
+            }
+        }
+
+        // Security check: Origin header on POST routes
+        if (req.method == "POST") {
+            auto orig_it = req.headers.find("origin");
+            if (orig_it != req.headers.end() && !orig_it->second.empty()) {
+                std::string orig = trim_h(orig_it->second);
+                std::string exp_orig = "http://127.0.0.1:" + std::to_string(actual_port_);
+                if (orig != exp_orig) {
+                    HttpResponse resp;
+                    resp.status_code = 403;
+                    resp.content_type = "application/json";
+                    resp.body = "{\"error\":\"Forbidden: Origin rejected: " + escape_json(orig) + "\",\"status\":403}";
+                    send_resp(resp);
+                    return;
+                }
             }
         }
 
@@ -380,6 +466,7 @@ HttpResponse HttpServer::route_request(const HttpRequest& req) {
         std::ostringstream ss;
         ss << "{"
            << "\"status\":\"ONLINE\","
+           << "\"session_token\":\"" << session_token_ << "\","
            << "\"app_name\":\"PASS Science Works Unified Engineering Workbench\","
            << "\"version\":\"1.0.0\","
            << "\"cpu_model\":\"" << MulticoreBenchmarker::get_cpu_brand_string() << "\","
@@ -390,43 +477,37 @@ HttpResponse HttpServer::route_request(const HttpRequest& req) {
         return resp;
     }
 
-    // STL Parser
+    // Samples Endpoints (Bundled data resolved from exe directory)
+    if (req.path == "/api/samples/stl" && req.method == "GET") {
+        std::string sample_path = resolve_data_file("sample_bracket.stl");
+        StlParseResult res = StlParser::parse_file(sample_path);
+        resp.status_code = res.success ? 200 : 500;
+        resp.content_type = "application/json";
+        resp.body = res.to_json();
+        return resp;
+    }
+
+    if (req.path == "/api/samples/ansys" && req.method == "GET") {
+        std::string sample_path = resolve_data_file("ansys_thermal_synthetic.csv");
+        AnsysParseResult res = AnsysParser::parse_file(sample_path);
+        resp.status_code = res.success ? 200 : 500;
+        resp.content_type = "application/json";
+        resp.body = res.to_json();
+        return resp;
+    }
+
+    // STL Parser (Raw text body only)
     if (req.path == "/api/stl/parse" && req.method == "POST") {
-        StlParseResult res;
-        // Check if body is raw STL text or a filepath
-        if (req.body.rfind("filepath:", 0) == 0) {
-            std::string path = trim_h(req.body.substr(9));
-            if (path.find("..") != std::string::npos || (path.find(':') != std::string::npos && path.find("PASS") == std::string::npos)) {
-                resp.status_code = 403;
-                resp.content_type = "application/json";
-                resp.body = "{\"error\":\"Access denied: File paths must remain within workspace data directory.\",\"status\":403}";
-                return resp;
-            }
-            res = StlParser::parse_file(path);
-        } else {
-            res = StlParser::parse_string(req.body);
-        }
+        StlParseResult res = StlParser::parse_string(req.body);
         resp.status_code = res.success ? 200 : 400;
         resp.content_type = "application/json";
         resp.body = res.to_json();
         return resp;
     }
 
-    // ANSYS CSV Parser
+    // ANSYS CSV Parser (Raw text body only)
     if (req.path == "/api/ansys/parse" && req.method == "POST") {
-        AnsysParseResult res;
-        if (req.body.rfind("filepath:", 0) == 0) {
-            std::string path = trim_h(req.body.substr(9));
-            if (path.find("..") != std::string::npos || (path.find(':') != std::string::npos && path.find("PASS") == std::string::npos)) {
-                resp.status_code = 403;
-                resp.content_type = "application/json";
-                resp.body = "{\"error\":\"Access denied: File paths must remain within workspace data directory.\",\"status\":403}";
-                return resp;
-            }
-            res = AnsysParser::parse_file(path);
-        } else {
-            res = AnsysParser::parse_string(req.body);
-        }
+        AnsysParseResult res = AnsysParser::parse_string(req.body);
         resp.status_code = res.success ? 200 : 400;
         resp.content_type = "application/json";
         resp.body = res.to_json();
@@ -864,8 +945,17 @@ HttpResponse HttpServer::route_request(const HttpRequest& req) {
         return resp;
     }
 
-    // Shutdown (Localhost only)
+    // Shutdown (Requires valid session token)
     if (req.path == "/api/shutdown" && req.method == "POST") {
+        auto tok_it = req.headers.find("x-session-token");
+        std::string tok = (tok_it != req.headers.end()) ? tok_it->second : "";
+        if (tok.empty() || tok != session_token_) {
+            resp.status_code = 403;
+            resp.content_type = "application/json";
+            resp.body = "{\"error\":\"Forbidden: Invalid or missing X-Session-Token.\",\"status\":403}";
+            return resp;
+        }
+
         resp.status_code = 200;
         resp.content_type = "application/json";
         resp.body = "{\"status\":\"SHUTTING_DOWN\"}";

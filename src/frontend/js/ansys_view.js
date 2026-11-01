@@ -110,11 +110,7 @@ const AnsysView = {
 
   loadSample() {
     App.showToast("Loading Synthetic ANSYS Nodal Results...", "info");
-    fetch('/api/ansys/parse', {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: 'filepath:data/ansys_thermal_synthetic.csv'
-    })
+    fetch('/api/samples/ansys')
     .then(r => r.json())
     .then(data => {
       if (data.success) {
