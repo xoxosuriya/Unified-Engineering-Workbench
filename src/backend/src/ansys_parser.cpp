@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iomanip>
+#include <unordered_set>
 
 namespace workbench {
 
@@ -130,6 +131,7 @@ AnsysParseResult AnsysParser::parse_string(const std::string& content) {
     res.min_temp_C = 1e30;
     res.max_temp_C = -1e30;
     double sum_temp = 0.0;
+    std::unordered_set<int64_t> seen_node_ids;
 
     while (std::getline(stream, line)) {
         line_num++;
@@ -154,17 +156,38 @@ AnsysParseResult AnsysParser::parse_string(const std::string& content) {
 
         AnsysNode node;
         try {
-            node.node_id = std::stoll(tokens[0]);
-            if (node.node_id <= 0) {
+            size_t id_len = 0;
+            long long parsed_id = std::stoll(tokens[0], &id_len);
+            if (id_len != tokens[0].size()) {
+                res.success = false;
+                res.error_message = "Line " + std::to_string(line_num) + ": node_id must be an integer, found fractional/non-integer value: '" + tokens[0] + "'";
+                return res;
+            }
+            if (parsed_id <= 0) {
                 res.success = false;
                 res.error_message = "Line " + std::to_string(line_num) + ": node_id must be a positive integer, found: " + tokens[0];
                 return res;
             }
+            if (seen_node_ids.count(parsed_id) > 0) {
+                res.success = false;
+                res.error_message = "Line " + std::to_string(line_num) + ": Duplicate node_id " + std::to_string(parsed_id) + " encountered.";
+                return res;
+            }
+            seen_node_ids.insert(parsed_id);
+            node.node_id = parsed_id;
 
-            node.position.x = std::stod(tokens[1]);
-            node.position.y = std::stod(tokens[2]);
-            node.position.z = std::stod(tokens[3]);
-            node.temperature_C = std::stod(tokens[4]);
+            size_t len_x = 0, len_y = 0, len_z = 0, len_t = 0;
+            node.position.x = std::stod(tokens[1], &len_x);
+            node.position.y = std::stod(tokens[2], &len_y);
+            node.position.z = std::stod(tokens[3], &len_z);
+            node.temperature_C = std::stod(tokens[4], &len_t);
+
+            if (len_x != tokens[1].size() || len_y != tokens[2].size() || 
+                len_z != tokens[3].size() || len_t != tokens[4].size()) {
+                res.success = false;
+                res.error_message = "Line " + std::to_string(line_num) + ": Malformed floating point coordinate or temperature format.";
+                return res;
+            }
         } catch (const std::exception& e) {
             res.success = false;
             res.error_message = "Line " + std::to_string(line_num) + ": Numerical parse error (" + e.what() + ") on line: '" + trimmed + "'";

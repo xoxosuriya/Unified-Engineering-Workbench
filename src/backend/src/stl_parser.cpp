@@ -51,7 +51,11 @@ std::string StlParseResult::to_json() const {
     ss << "\"solid_name\":\"" << solid_name << "\",";
     ss << "\"facet_count\":" << facet_count << ",";
     ss << "\"file_size_bytes\":" << file_size_bytes << ",";
-    ss << "\"surface_area\":" << surface_area << ",";
+    if (std::isfinite(surface_area)) {
+        ss << "\"surface_area\":" << surface_area << ",";
+    } else {
+        ss << "\"surface_area\":null,";
+    }
     ss << "\"bounds\":{\"min\":[" << min_bound.x << "," << min_bound.y << "," << min_bound.z << "],"
        << "\"max\":[" << max_bound.x << "," << max_bound.y << "," << max_bound.z << "]},";
     
@@ -235,9 +239,9 @@ StlParseResult StlParser::parse_string(const std::string& content) {
                         return res;
                     }
                     Vec3 v{vx, vy, vz};
-                    if (!v.is_finite()) {
+                    if (!v.is_finite() || std::abs(v.x) > 1e12 || std::abs(v.y) > 1e12 || std::abs(v.z) > 1e12) {
                         res.success = false;
-                        res.error_message = "Line " + std::to_string(line_num) + ": Vertex coordinate contains NaN or Infinite value.";
+                        res.error_message = "Line " + std::to_string(line_num) + ": Vertex coordinate is NaN, Inf, or exceeds physical range (|coord| > 1e12 m).";
                         return res;
                     }
                     current_tri.vertices[vertex_idx++] = v;
@@ -287,6 +291,11 @@ StlParseResult StlParser::parse_string(const std::string& content) {
                     };
                     Vec3 c = cross(edge1, edge2);
                     double tri_area = 0.5 * length(c);
+                    if (!std::isfinite(tri_area)) {
+                        res.success = false;
+                        res.error_message = "Line " + std::to_string(line_num) + ": Facet area computation resulted in non-finite value.";
+                        return res;
+                    }
                     res.surface_area += tri_area;
 
                     // If normal is zero, calculate from cross product

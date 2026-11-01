@@ -16,7 +16,7 @@ struct AnsysNode {
 struct AnsysParseResult {
     bool success = false;
     std::string error_message;
-    bool is_synthetic = true;
+    bool is_synthetic = false;
     size_t node_count = 0;
     size_t file_size_bytes = 0;
     std::vector<AnsysNode> nodes;
