@@ -9,6 +9,7 @@
 #include "multicore_bench.hpp"
 #include "embedded_hardware.hpp"
 #include "backprop_engine.hpp"
+#include <atomic>
 
 using namespace workbench;
 
@@ -260,12 +261,161 @@ void test_backpropagation_gradient_check() {
 }
 
 // -------------------------------------------------------------
+// 7. Disk Samples & Provenance Verification Tests
+// -------------------------------------------------------------
+void test_disk_files_sample_bracket_and_ansys() {
+    // Parse the actual sample_bracket.stl from disk
+    StlParseResult stl_res = StlParser::parse_file("data/sample_bracket.stl");
+    TEST_ASSERT(stl_res.success, "sample_bracket.stl must parse successfully: " + stl_res.error_message);
+    TEST_ASSERT(stl_res.facet_count == 32, "sample_bracket.stl has exactly 32 facets");
+    TEST_ASSERT(std::abs(stl_res.surface_area - 0.046297) < 1e-4, "Surface area must match 0.0463 m^2");
+    TEST_ASSERT(std::abs(stl_res.max_bound.x - 0.10) < 1e-3, "Max X bound is 0.10 m (100 mm)");
+    TEST_ASSERT(std::abs(stl_res.max_bound.y - 0.08) < 1e-3, "Max Y bound is 0.08 m (80 mm)");
+    TEST_ASSERT(std::abs(stl_res.max_bound.z - 0.10) < 1e-3, "Max Z bound is 0.10 m (100 mm)");
+
+    // Parse the actual ansys_thermal_synthetic.csv from disk
+    AnsysParseResult ansys_res = AnsysParser::parse_file("data/ansys_thermal_synthetic.csv");
+    TEST_ASSERT(ansys_res.success, "ansys_thermal_synthetic.csv must parse successfully: " + ansys_res.error_message);
+    TEST_ASSERT(ansys_res.node_count == 3485, "Must contain exactly 3,485 nodes");
+    TEST_ASSERT(std::abs(ansys_res.min_temp_C - 36.87) < 0.1, "Min temp must be approx 36.87 C");
+    TEST_ASSERT(std::abs(ansys_res.max_temp_C - 104.0) < 0.1, "Max temp must be approx 104.0 C");
+    TEST_ASSERT(ansys_res.is_synthetic, "Synthetic flag must be true");
+}
+
+void test_disk_test_samples() {
+    // Test negative STL specimens on disk
+    TEST_ASSERT(!StlParser::parse_file("data/test_samples/empty.stl").success, "empty.stl must be rejected");
+    TEST_ASSERT(!StlParser::parse_file("data/test_samples/corrupted_syntax.stl").success, "corrupted_syntax.stl must be rejected");
+    TEST_ASSERT(!StlParser::parse_file("data/test_samples/nan_coords.stl").success, "nan_coords.stl must be rejected");
+
+    // Test negative CSV specimens on disk
+    TEST_ASSERT(!AnsysParser::parse_file("data/test_samples/empty.csv").success, "empty.csv must be rejected");
+    TEST_ASSERT(!AnsysParser::parse_file("data/test_samples/missing_columns.csv").success, "missing_columns.csv must be rejected");
+    TEST_ASSERT(!AnsysParser::parse_file("data/test_samples/sub_absolute_zero.csv").success, "sub_absolute_zero.csv must be rejected");
+}
+
+// -------------------------------------------------------------
+// 8. FEA Edge Cases: N=1 and N=2 Stability
+// -------------------------------------------------------------
+void test_thermal_fea_edge_cases_N1_N2() {
+    ThermalParams1D p;
+    p.length_L = 1.0;
+    p.area_A = 1e-4;
+    p.conductivity_k = 10.0;
+    p.heat_gen_q = 10000.0;
+    p.temp_T0 = 100.0;
+    p.temp_TL = 20.0;
+
+    // N = 1 (Single element, no interior nodes)
+    p.num_elements_N = 1;
+    ThermalSolveResult1D sol_n1 = ThermalFEMSolver1D::solve(p);
+    TEST_ASSERT(sol_n1.node_temp_fea.size() == 2, "N=1 has 2 nodes");
+    TEST_ASSERT(std::abs(sol_n1.node_temp_fea[0] - 100.0) < 1e-12, "N=1 T0 == 100 C");
+    TEST_ASSERT(std::abs(sol_n1.node_temp_fea[1] - 20.0) < 1e-12, "N=1 TL == 20 C");
+
+    // N = 2 (Two elements, exactly 1 interior node at x = 0.5)
+    p.num_elements_N = 2;
+    ThermalSolveResult1D sol_n2 = ThermalFEMSolver1D::solve(p);
+    TEST_ASSERT(sol_n2.node_temp_fea.size() == 3, "N=2 has 3 nodes");
+    // Analytical solution at x = 0.5: T(0.5) = 100 - 40 + [10000/(20)] * 0.25 = 60 + 125 = 185.0 C
+    TEST_ASSERT(std::abs(sol_n2.node_temp_fea[1] - 185.0) < 1e-10, "N=2 interior node must be exactly 185.0 C");
+    // Midpoint error for N = 2, h = 0.5: q*h^2/(8*k) = 10000 * 0.25 / 80 = 31.25 C
+    TEST_ASSERT(std::abs(sol_n2.max_midpoint_error - 31.25) < 1e-10, "N=2 midpoint error must be exactly 31.25 C");
+}
+
+// -------------------------------------------------------------
+// 9. Multicore Benchmark Cooperative Cancellation
+// -------------------------------------------------------------
+void test_multicore_bench_cancellation() {
+    BenchmarkConfig cfg;
+    cfg.seed = 42;
+    cfg.case_count = 200;
+    cfg.mesh_size_N = 50;
+    cfg.repetitions = 5;
+    cfg.worker_counts = {1, 2, 4};
+
+    std::atomic<bool> cancel_flag{true}; // Cancel immediately
+    BenchmarkSummary summary = MulticoreBenchmarker::run_benchmark(cfg, &cancel_flag);
+    TEST_ASSERT(summary.was_cancelled, "Benchmark must acknowledge cancellation flag");
+}
+
+// -------------------------------------------------------------
+// 10. Thermal FEA Input Validation & Safety
+// -------------------------------------------------------------
+void test_thermal_fea_input_validation() {
+    ThermalParams1D p;
+    p.num_elements_N = 0; // Invalid N=0
+    bool caught_n0 = false;
+    try {
+        ThermalFEMSolver1D::solve(p);
+    } catch (const std::invalid_argument&) {
+        caught_n0 = true;
+    }
+    TEST_ASSERT(caught_n0, "N=0 must throw std::invalid_argument");
+
+    p.num_elements_N = 10;
+    p.conductivity_k = -5.0; // Negative k
+    bool caught_neg_k = false;
+    try {
+        ThermalFEMSolver1D::solve(p);
+    } catch (const std::invalid_argument&) {
+        caught_neg_k = true;
+    }
+    TEST_ASSERT(caught_neg_k, "k <= 0 must throw std::invalid_argument");
+
+    p.conductivity_k = 10.0;
+    p.length_L = -1.0; // Negative L
+    bool caught_neg_L = false;
+    try {
+        ThermalFEMSolver1D::solve(p);
+    } catch (const std::invalid_argument&) {
+        caught_neg_L = true;
+    }
+    TEST_ASSERT(caught_neg_L, "L <= 0 must throw std::invalid_argument");
+}
+
+void test_parser_edge_cases() {
+    // 1. Duplicate node ID check in ANSYS CSV
+    std::string dup_csv = "node_id,x_m,y_m,z_m,temperature_C\n1,0,0,0,50\n1,0.01,0,0,60\n";
+    auto r1 = AnsysParser::parse_string(dup_csv);
+    TEST_ASSERT(!r1.success, "Duplicate node_id must be rejected");
+    TEST_ASSERT(r1.error_message.find("Duplicate node_id") != std::string::npos, "Error must mention duplicate node_id");
+
+    // 2. Fractional node ID check in ANSYS CSV
+    std::string frac_csv = "node_id,x_m,y_m,z_m,temperature_C\n1.5,0,0,0,50\n";
+    auto r2 = AnsysParser::parse_string(frac_csv);
+    TEST_ASSERT(!r2.success, "Fractional node_id 1.5 must be rejected");
+    TEST_ASSERT(r2.error_message.find("must be an integer") != std::string::npos, "Error must indicate non-integer node_id");
+
+    // 3. Default non-synthetic check
+    std::string plain_csv = "node_id,x_m,y_m,z_m,temperature_C\n1,0,0,0,50\n2,0.01,0,0,60\n";
+    auto r3 = AnsysParser::parse_string(plain_csv);
+    TEST_ASSERT(r3.success, "Plain CSV must parse successfully");
+    TEST_ASSERT(!r3.is_synthetic, "is_synthetic must default to false");
+
+    // 4. Extreme STL coordinate check (> 1e12 m)
+    std::string extreme_stl = 
+        "solid extreme_test\n"
+        "  facet normal 0 0 1\n"
+        "    outer loop\n"
+        "      vertex 0 0 0\n"
+        "      vertex 1e308 0 0\n"
+        "      vertex 0 1 0\n"
+        "    endloop\n"
+        "  endfacet\n"
+        "endsolid extreme_test\n";
+    auto r4 = StlParser::parse_string(extreme_stl);
+    TEST_ASSERT(!r4.success, "Extreme coordinate 1e308 must be rejected by parser bounds check");
+    TEST_ASSERT(r4.error_message.find("exceeds physical range") != std::string::npos, "Error message must report physical range rejection");
+}
+
+// -------------------------------------------------------------
 // Test Runner Main
 // -------------------------------------------------------------
 int main() {
     std::cout << "=================================================================\n";
     std::cout << " UNIFIED ENGINEERING WORKBENCH - C++ VERIFICATION TEST SUITE     \n";
-    std::cout << " Positive, Negative, and Numerical Accuracy Tests                \n";
+    std::cout << " Positive, Negative, Disk File, and Numerical Robustness Tests   \n";
     std::cout << "=================================================================\n";
 
     // Task B Tests
@@ -277,12 +427,18 @@ int main() {
     RUN_TEST(test_ansys_parser_empty_file);
     RUN_TEST(test_ansys_parser_missing_header);
     RUN_TEST(test_ansys_parser_below_absolute_zero);
+    RUN_TEST(test_disk_files_sample_bracket_and_ansys);
+    RUN_TEST(test_disk_test_samples);
+    RUN_TEST(test_parser_edge_cases);
 
     // Task C Tests
     RUN_TEST(test_thermal_fea_analytical_and_convergence);
+    RUN_TEST(test_thermal_fea_edge_cases_N1_N2);
+    RUN_TEST(test_thermal_fea_input_validation);
 
     // Task D Tests
     RUN_TEST(test_multicore_bench_agreement);
+    RUN_TEST(test_multicore_bench_cancellation);
 
     // Task E Tests
     RUN_TEST(test_embedded_hardware_lifecycle_and_fault_recovery);

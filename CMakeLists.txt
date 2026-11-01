@@ -59,3 +59,11 @@ add_executable(workbench_tests
 )
 target_link_libraries(workbench_tests PRIVATE workbench_core)
 add_test(NAME AllWorkbenchTests COMMAND workbench_tests)
+
+# Install / Packaging Configuration
+install(TARGETS Launch workbench_backend workbench_tests RUNTIME DESTINATION .)
+install(DIRECTORY src/frontend DESTINATION src)
+install(DIRECTORY data DESTINATION .)
+install(DIRECTORY docs DESTINATION .)
+install(DIRECTORY results DESTINATION .)
+install(FILES README.md CMakeLists.txt DESTINATION .)

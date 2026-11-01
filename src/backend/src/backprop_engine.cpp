@@ -224,16 +224,6 @@ std::string BackpropSummary::to_json() const {
 std::string BackpropSummary::to_csv() const {
     std::ostringstream ss;
     ss << std::fixed << std::setprecision(8);
-    ss << "# Simple Handwritten Backpropagation Training History (100 Steps)\n";
-    ss << "# Architecture: h = tanh(w*x + b), y_hat = v*h + c, J = 0.5*(y_hat - y)^2\n";
-    ss << "# Sample: x=" << input_x << ", y=" << target_y << ", Learning Rate eta=" << learning_rate_eta << "\n";
-    ss << "# Initial: w=0.5, b=0, v=1, c=0\n";
-    ss << "# Finite Difference Verification (epsilon=" << finite_diff_epsilon << ", threshold <= 1e-5):\n";
-    for (const auto& c : gradient_checks) {
-        ss << "#   Param " << c.param_name << ": Analytical=" << c.analytical_grad 
-           << " | Numerical=" << c.numerical_grad << " | Diff=" << c.abs_difference 
-           << " (" << (c.passed ? "PASSED" : "FAILED") << ")\n";
-    }
     ss << "step,w,b,v,c,z,h,y_hat,loss_J,dJ_dw,dJ_db,dJ_dv,dJ_dc\n";
 
     for (const auto& h : history_100_steps) {
