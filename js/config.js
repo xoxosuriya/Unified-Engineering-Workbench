@@ -18,8 +18,8 @@ window.CONFIG = {
   
   // Network and mock detection
   apiBase: '',
-  statusPollIntervalMs: 5000,
-  mockTimeoutMs: 800,
+  statusPollIntervalMs: 2000,
+  mockTimeoutMs: 2500,
   
   // UI animation timings
   openDurationMs: 1050,
