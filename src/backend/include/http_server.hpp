@@ -53,6 +53,7 @@ private:
     std::unique_ptr<EmbeddedHardwareManager> hw_manager_;
     std::mutex hw_mutex_;
     std::atomic<bool> benchmark_cancel_requested_{false};
+    std::atomic<bool> benchmark_in_progress_{false};
 };
 
 } // namespace workbench

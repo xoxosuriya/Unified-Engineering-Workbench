@@ -498,6 +498,137 @@ HttpResponse HttpServer::route_request(const HttpRequest& req) {
         return resp;
     }
 
+    // FEA Convergence Study (with parameter validation)
+    if (req.path == "/api/fea/convergence") {
+        ThermalParams1D p;
+        std::string err;
+        if (!req.query.empty()) {
+            std::istringstream qs(req.query);
+            std::string kv;
+            while (std::getline(qs, kv, '&')) {
+                size_t eq = kv.find('=');
+                if (eq != std::string::npos) {
+                    std::string k = kv.substr(0, eq);
+                    std::string v = kv.substr(eq + 1);
+                    if (k == "L") {
+                        if (!parse_double_safe(v, p.length_L, 1e-4, 1000.0, err, "L (rod length)")) {
+                            resp.status_code = 400;
+                            resp.body = "{\"error\":\"" + escape_json(err) + "\",\"status\":400}";
+                            return resp;
+                        }
+                    } else if (k == "A") {
+                        if (!parse_double_safe(v, p.area_A, 1e-8, 100.0, err, "A (cross-section area)")) {
+                            resp.status_code = 400;
+                            resp.body = "{\"error\":\"" + escape_json(err) + "\",\"status\":400}";
+                            return resp;
+                        }
+                    } else if (k == "k") {
+                        if (!parse_double_safe(v, p.conductivity_k, 1e-6, 100000.0, err, "k (conductivity)")) {
+                            resp.status_code = 400;
+                            resp.body = "{\"error\":\"" + escape_json(err) + "\",\"status\":400}";
+                            return resp;
+                        }
+                    } else if (k == "q") {
+                        if (!parse_double_safe(v, p.heat_gen_q, 0.0, 1e9, err, "q (heat generation)")) {
+                            resp.status_code = 400;
+                            resp.body = "{\"error\":\"" + escape_json(err) + "\",\"status\":400}";
+                            return resp;
+                        }
+                    } else if (k == "T0") {
+                        if (!parse_double_safe(v, p.temp_T0, -273.15, 1e6, err, "T0 (left temperature)")) {
+                            resp.status_code = 400;
+                            resp.body = "{\"error\":\"" + escape_json(err) + "\",\"status\":400}";
+                            return resp;
+                        }
+                    } else if (k == "TL") {
+                        if (!parse_double_safe(v, p.temp_TL, -273.15, 1e6, err, "TL (right temperature)")) {
+                            resp.status_code = 400;
+                            resp.body = "{\"error\":\"" + escape_json(err) + "\",\"status\":400}";
+                            return resp;
+                        }
+                    }
+                }
+            }
+        }
+        ConvergenceStudyResult res = ThermalFEMSolver1D::run_convergence_study(p);
+        resp.status_code = 200;
+        resp.content_type = "application/json";
+        resp.body = res.to_json();
+        return resp;
+    }
+
+    // Multicore Performance Benchmark
+    if (req.path == "/api/performance/run") {
+        BenchmarkConfig cfg;
+        std::string err;
+        
+        if (!req.query.empty()) {
+            std::istringstream qs(req.query);
+            std::string kv;
+            while (std::getline(qs, kv, '&')) {
+                size_t eq = kv.find('=');
+                if (eq != std::string::npos) {
+                    std::string k = kv.substr(0, eq);
+                    std::string v = kv.substr(eq + 1);
+                    if (k == "cases") {
+                        if (!parse_size_t_safe(v, cfg.case_count, 1, 200000, err, "cases")) {
+                            resp.status_code = 400;
+                            resp.content_type = "application/json";
+                            resp.body = "{\"error\":\"" + escape_json(err) + "\",\"status\":400}";
+                            return resp;
+                        }
+                    } else if (k == "mesh") {
+                        if (!parse_size_t_safe(v, cfg.mesh_size_N, 1, 5000, err, "mesh")) {
+                            resp.status_code = 400;
+                            resp.content_type = "application/json";
+                            resp.body = "{\"error\":\"" + escape_json(err) + "\",\"status\":400}";
+                            return resp;
+                        }
+                    } else if (k == "seed") {
+                        size_t s = 42;
+                        if (!parse_size_t_safe(v, s, 0, 4294967295ULL, err, "seed")) {
+                            resp.status_code = 400;
+                            resp.content_type = "application/json";
+                            resp.body = "{\"error\":\"" + escape_json(err) + "\",\"status\":400}";
+                            return resp;
+                        }
+                        cfg.seed = static_cast<uint32_t>(s);
+                    }
+                }
+            }
+        }
+
+        bool expected = false;
+        if (!benchmark_in_progress_.compare_exchange_strong(expected, true)) {
+            resp.status_code = 409;
+            resp.content_type = "application/json";
+            resp.body = "{\"error\":\"A benchmark is already running\",\"status\":409}";
+            return resp;
+        }
+
+        struct BenchmarkGuard {
+            std::atomic<bool>& flag;
+            ~BenchmarkGuard() { flag.store(false); }
+        } bg_guard{benchmark_in_progress_};
+
+        benchmark_cancel_requested_.store(false);
+
+        BenchmarkSummary bench = MulticoreBenchmarker::run_benchmark(cfg, &benchmark_cancel_requested_);
+        resp.status_code = 200;
+        resp.content_type = "application/json";
+        resp.body = bench.to_json();
+        return resp;
+    }
+
+    // Benchmark Cancellation
+    if (req.path == "/api/performance/cancel" && req.method == "POST") {
+        benchmark_cancel_requested_.store(true);
+        resp.status_code = 200;
+        resp.content_type = "application/json";
+        resp.body = "{\"success\":true}";
+        return resp;
+    }
+
     // Hardware Discovery (Thread-Safe)
     if (req.path == "/api/hardware/discover") {
         std::lock_guard<std::mutex> lock(hw_mutex_);
@@ -614,6 +745,7 @@ HttpResponse HttpServer::route_request(const HttpRequest& req) {
     // CSV Exports (Parameter-Driven)
     if (req.path == "/api/export/fea_csv") {
         ThermalParams1D p;
+        bool want_json = (req.query.find("format=json") != std::string::npos);
         if (!req.query.empty()) {
             std::istringstream qs(req.query);
             std::string kv, err;
@@ -633,13 +765,19 @@ HttpResponse HttpServer::route_request(const HttpRequest& req) {
         }
         ConvergenceStudyResult study = ThermalFEMSolver1D::run_convergence_study(p);
         resp.status_code = 200;
-        resp.content_type = "text/csv; charset=utf-8";
-        resp.body = study.to_csv();
+        if (want_json) {
+            resp.content_type = "application/json";
+            resp.body = "{\"status\":200,\"csv\":\"" + escape_json(study.to_csv()) + "\"}";
+        } else {
+            resp.content_type = "text/csv; charset=utf-8";
+            resp.body = study.to_csv();
+        }
         return resp;
     }
 
     if (req.path == "/api/export/fea_profile_csv") {
         ThermalParams1D p;
+        bool want_json = (req.query.find("format=json") != std::string::npos);
         if (!req.query.empty()) {
             std::istringstream qs(req.query);
             std::string kv, err;
@@ -659,13 +797,19 @@ HttpResponse HttpServer::route_request(const HttpRequest& req) {
         }
         ConvergenceStudyResult study = ThermalFEMSolver1D::run_convergence_study(p);
         resp.status_code = 200;
-        resp.content_type = "text/csv; charset=utf-8";
-        resp.body = study.to_profile_csv();
+        if (want_json) {
+            resp.content_type = "application/json";
+            resp.body = "{\"status\":200,\"csv\":\"" + escape_json(study.to_profile_csv()) + "\"}";
+        } else {
+            resp.content_type = "text/csv; charset=utf-8";
+            resp.body = study.to_profile_csv();
+        }
         return resp;
     }
 
     if (req.path == "/api/export/performance_csv") {
         BenchmarkConfig cfg;
+        bool want_json = (req.query.find("format=json") != std::string::npos);
         if (!req.query.empty()) {
             std::istringstream qs(req.query);
             std::string kv, err;
@@ -674,11 +818,11 @@ HttpResponse HttpServer::route_request(const HttpRequest& req) {
                 if (eq != std::string::npos) {
                     std::string k = kv.substr(0, eq);
                     std::string v = kv.substr(eq + 1);
-                    if (k == "cases") parse_size_t_safe(v, cfg.case_count, 1, 50000, err, "cases");
+                    if (k == "cases") parse_size_t_safe(v, cfg.case_count, 1, 200000, err, "cases");
                     else if (k == "mesh") parse_size_t_safe(v, cfg.mesh_size_N, 1, 5000, err, "mesh");
                     else if (k == "seed") {
                         size_t s = 42;
-                        if (parse_size_t_safe(v, s, 0, 0xFFFFFFFF, err, "seed")) {
+                        if (parse_size_t_safe(v, s, 0, 4294967295ULL, err, "seed")) {
                             cfg.seed = static_cast<uint32_t>(s);
                         }
                     }
@@ -687,16 +831,27 @@ HttpResponse HttpServer::route_request(const HttpRequest& req) {
         }
         BenchmarkSummary bench = MulticoreBenchmarker::run_benchmark(cfg);
         resp.status_code = 200;
-        resp.content_type = "text/csv; charset=utf-8";
-        resp.body = bench.to_csv();
+        if (want_json) {
+            resp.content_type = "application/json";
+            resp.body = "{\"status\":200,\"csv\":\"" + escape_json(bench.to_csv()) + "\"}";
+        } else {
+            resp.content_type = "text/csv; charset=utf-8";
+            resp.body = bench.to_csv();
+        }
         return resp;
     }
 
     if (req.path == "/api/export/backprop_csv") {
+        bool want_json = (req.query.find("format=json") != std::string::npos);
         BackpropSummary bp = BackpropEngine::run_full_study();
         resp.status_code = 200;
-        resp.content_type = "text/csv; charset=utf-8";
-        resp.body = bp.to_csv();
+        if (want_json) {
+            resp.content_type = "application/json";
+            resp.body = "{\"status\":200,\"csv\":\"" + escape_json(bp.to_csv()) + "\"}";
+        } else {
+            resp.content_type = "text/csv; charset=utf-8";
+            resp.body = bp.to_csv();
+        }
         return resp;
     }
 
