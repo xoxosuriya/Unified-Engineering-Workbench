@@ -51,49 +51,96 @@ ThermalSolveResult1D ThermalFEMSolver1D::solve(const ThermalParams1D& params) {
     res.node_temp_fea[N] = params.temp_TL;
 
     if (N == 1) {
-        // Only boundary nodes exist
+        // Single element with 2 boundary nodes (Dirichlet on both ends)
     } else {
-        const size_t M = N - 1; // Number of interior unknowns
-        const double source_term = (params.heat_gen_q * h * h) / params.conductivity_k;
+        const size_t M = N - 1; // Number of interior unknowns (nodes 1 to N-1)
 
-        // Tridiagonal system for interior nodes 1 to N-1:
-        // Main diagonal: 2.0
-        // Subdiagonal: -1.0
-        // Superdiagonal: -1.0
-        // RHS: source_term (+ T0 for node 1, + TL for node N-1)
-        std::vector<double> sub(M - 1, -1.0);
-        std::vector<double> diag(M, 2.0);
-        std::vector<double> sup(M - 1, -1.0);
-        std::vector<double> rhs(M, source_term);
+        // -------------------------------------------------------------
+        // Task C Core Requirement: Explicit Element Formulation & Assembly
+        // Element stiffness: k^e = (kA/h) * [ 1, -1 ; -1,  1 ]
+        // Element load:      f^e = (qAh/2) * [ 1 ; 1 ]
+        // -------------------------------------------------------------
+        const double k_coeff = (params.conductivity_k * params.area_A) / h;
+        const double f_coeff = (params.heat_gen_q * params.area_A * h) / 2.0;
 
-        rhs[0] += params.temp_T0;
-        rhs[M - 1] += params.temp_TL;
+        // Global stiffness diagonals and load vector for interior unknowns
+        // Interior node indices in global indexing: i = 1, 2, ..., N-1
+        // Corresponding interior unknown indices:  m = 0, 1, ..., M-1 (m = i - 1)
+        std::vector<double> diag(M, 0.0);
+        std::vector<double> sub(M > 1 ? M - 1 : 0, 0.0);
+        std::vector<double> sup(M > 1 ? M - 1 : 0, 0.0);
+        std::vector<double> rhs(M, 0.0);
 
-        // Thomas algorithm for M unknowns
-        std::vector<double> cp(M - 1, 0.0);
-        std::vector<double> dp(M, 0.0);
+        // Assemble element contributions into the global interior system:
+        // Element e connects node e and node e+1.
+        for (size_t e = 0; e < N; ++e) {
+            size_t n1 = e;
+            size_t n2 = e + 1;
 
-        cp[0] = sup[0] / diag[0];
-        dp[0] = rhs[0] / diag[0];
+            // Contribution to node n1
+            if (n1 >= 1 && n1 <= M) {
+                size_t m1 = n1 - 1;
+                diag[m1] += k_coeff; // k^e[0][0]
+                rhs[m1] += f_coeff;  // f^e[0]
+                if (n2 == 0) {
+                    rhs[m1] -= (-k_coeff) * params.temp_T0; // Dirichlet coupling
+                } else if (n2 == N) {
+                    rhs[m1] -= (-k_coeff) * params.temp_TL; // Dirichlet coupling
+                } else {
+                    size_t m2 = n2 - 1;
+                    if (m1 + 1 == m2 && m1 < sup.size()) {
+                        sup[m1] += (-k_coeff); // k^e[0][1]
+                    }
+                }
+            }
 
-        for (size_t i = 1; i < M - 1; ++i) {
-            double denom = diag[i] - sub[i - 1] * cp[i - 1];
-            cp[i] = sup[i] / denom;
-            dp[i] = (rhs[i] - sub[i - 1] * dp[i - 1]) / denom;
+            // Contribution to node n2
+            if (n2 >= 1 && n2 <= M) {
+                size_t m2 = n2 - 1;
+                diag[m2] += k_coeff; // k^e[1][1]
+                rhs[m2] += f_coeff;  // f^e[1]
+                if (n1 == 0) {
+                    rhs[m2] -= (-k_coeff) * params.temp_T0; // Dirichlet coupling
+                } else if (n1 == N) {
+                    rhs[m2] -= (-k_coeff) * params.temp_TL; // Dirichlet coupling
+                } else {
+                    size_t m1 = n1 - 1;
+                    if (m2 == m1 + 1 && m1 < sub.size()) {
+                        sub[m1] += (-k_coeff); // k^e[1][0]
+                    }
+                }
+            }
         }
 
-        if (M > 1) {
+        // Solve interior tridiagonal system:
+        if (M == 1) {
+            // Exactly one interior node (N = 2)
+            double T_interior = rhs[0] / diag[0];
+            res.node_temp_fea[1] = T_interior;
+        } else {
+            // Thomas algorithm (TDMA) for M >= 2 unknowns
+            std::vector<double> cp(M - 1, 0.0);
+            std::vector<double> dp(M, 0.0);
+
+            cp[0] = sup[0] / diag[0];
+            dp[0] = rhs[0] / diag[0];
+
+            for (size_t i = 1; i < M - 1; ++i) {
+                double denom = diag[i] - sub[i - 1] * cp[i - 1];
+                cp[i] = sup[i] / denom;
+                dp[i] = (rhs[i] - sub[i - 1] * dp[i - 1]) / denom;
+            }
+
             double denom_last = diag[M - 1] - sub[M - 2] * cp[M - 2];
             dp[M - 1] = (rhs[M - 1] - sub[M - 2] * dp[M - 2]) / denom_last;
-        }
 
-        // Back substitution
-        res.node_temp_fea[M] = dp[M - 1]; // Interior node M is index M in res.node_temp_fea
-        for (int i = static_cast<int>(M) - 2; i >= 0; --i) {
-            dp[i] = dp[i] - cp[i] * dp[i + 1];
-            res.node_temp_fea[i + 1] = dp[i];
+            // Back substitution
+            res.node_temp_fea[M] = dp[M - 1]; // global node M (interior index M-1)
+            for (int i = static_cast<int>(M) - 2; i >= 0; --i) {
+                dp[i] = dp[i] - cp[i] * dp[i + 1];
+                res.node_temp_fea[i + 1] = dp[i]; // global node i + 1
+            }
         }
-        res.node_temp_fea[M] = dp[M - 1];
     }
 
     // Evaluate errors at nodes
@@ -279,10 +326,6 @@ std::string ConvergenceStudyResult::to_json() const {
 std::string ConvergenceStudyResult::to_csv() const {
     std::ostringstream ss;
     ss << std::fixed << std::setprecision(8);
-    ss << "# 1D Thermal FEA Mesh Convergence Study\n";
-    ss << "# Parameters: L=" << base_params.length_L << " m, A=" << base_params.area_A 
-       << " m^2, k=" << base_params.conductivity_k << " W/(m K), q=" << base_params.heat_gen_q 
-       << " W/m^3, T(0)=" << base_params.temp_T0 << " C, T(L)=" << base_params.temp_TL << " C\n";
     ss << "mesh_N,element_size_h_m,max_midpoint_error_C,theoretical_midpoint_error_C,max_nodal_error_C,error_reduction_ratio,observed_convergence_rate\n";
     for (const auto& r : rows) {
         ss << r.num_elements << "," << r.element_size_h << "," 
@@ -290,6 +333,43 @@ std::string ConvergenceStudyResult::to_csv() const {
            << r.max_nodal_error << "," << r.error_reduction_ratio << "," 
            << r.observed_convergence_rate << "\n";
     }
+    return ss.str();
+}
+
+std::string ConvergenceStudyResult::to_profile_csv() const {
+    std::ostringstream ss;
+    ss << std::fixed << std::setprecision(6);
+    ss << "x_m,T_exact_C,T_FE_N10_C,T_FE_N20_C,T_FE_N40_C,T_FE_N80_C\n";
+
+    const size_t num_pts = 101; // 101 evaluation points from x = 0 to L
+    const double L = base_params.length_L;
+
+    // Helper to evaluate FE solution at arbitrary x via linear element interpolation
+    auto eval_fe = [](const ThermalSolveResult1D& res, double x) -> double {
+        if (x <= res.node_x.front()) return res.node_temp_fea.front();
+        if (x >= res.node_x.back()) return res.node_temp_fea.back();
+        size_t N = res.params.num_elements_N;
+        double h = res.element_size_h;
+        size_t e = static_cast<size_t>(x / h);
+        if (e >= N) e = N - 1;
+        double x_left = res.node_x[e];
+        double xi = (x - x_left) / h;
+        if (xi < 0.0) xi = 0.0;
+        if (xi > 1.0) xi = 1.0;
+        return (1.0 - xi) * res.node_temp_fea[e] + xi * res.node_temp_fea[e + 1];
+    };
+
+    for (size_t i = 0; i < num_pts; ++i) {
+        double x = (static_cast<double>(i) / static_cast<double>(num_pts - 1)) * L;
+        double t_exact = ThermalFEMSolver1D::exact_solution(x, base_params);
+
+        ss << x << "," << t_exact;
+        for (const auto& solve : individual_solves) {
+            ss << "," << eval_fe(solve, x);
+        }
+        ss << "\n";
+    }
+
     return ss.str();
 }
 

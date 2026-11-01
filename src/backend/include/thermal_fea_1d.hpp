@@ -57,7 +57,8 @@ struct ConvergenceStudyResult {
     std::vector<ThermalSolveResult1D> individual_solves;
 
     std::string to_json() const;
-    std::string to_csv() const;
+    std::string to_csv() const;             // Convergence summary table CSV
+    std::string to_profile_csv() const;     // Spatial T(x) profile comparison CSV
 };
 
 class ThermalFEMSolver1D {
