@@ -1,0 +1,156 @@
+commit ec550cf72061422ad56d1ee689e264dc58e7aacf
+Author: Candidate <candidate@pass-science-works.internal>
+Date:   Sun Nov 1 11:08:20 2026 +0530
+
+    docs: add technical report, results CSVs, AI-use log, and walkthrough evidence
+
+ README.md                                 | 187 +++++++++++++++++++++
+ docs/AI_LOG.md                            |  65 +++++++
+ docs/DEMONSTRATION_WALKTHROUGH.md         |  46 +++++
+ docs/OWNERSHIP.md                         |  45 +++++
+ docs/Workbench_Report.md                  | 271 ++++++++++++++++++++++++++++++
+ docs/workbench_demo.webp                  | Bin 0 -> 14916542 bytes
+ results/backprop_loss.csv                 | 119 +++++++++++++
+ results/fea_convergence.csv               |  15 ++
+ results/multicore_scaling.csv             |  18 ++
+ results/plots/backprop_loss_dynamics.svg  |  63 +++++++
+ results/plots/fea_temperature_profile.svg |  67 ++++++++
+ results/plots/multicore_speedup.svg       |  55 ++++++
+ 12 files changed, 951 insertions(+)
+
+commit 660f4bb9919e5e8e4b6b04b7fe878c6186156ba1
+Author: Candidate <candidate@pass-science-works.internal>
+Date:   Sun Nov 1 11:08:19 2026 +0530
+
+    test: add comprehensive 12-test automated verification suite
+
+ tests/test_runner.cpp | 298 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 298 insertions(+)
+
+commit 07b1db0fc53306712f97306c744f5029bfa18995
+Author: Candidate <candidate@pass-science-works.internal>
+Date:   Sun Nov 1 11:08:19 2026 +0530
+
+    feat(launcher): create standalone Windows 11 GUI launcher Launch.exe and editor run configurations
+
+ .vscode/launch.json                   |  28 +++++
+ .vscode/tasks.json                    |  29 ++++++
+ CMakeLists.txt                        |  61 +++++++++++
+ Launch.exe                            | Bin 0 -> 3107513 bytes
+ src/backend/launcher/launcher_win.cpp | 186 ++++++++++++++++++++++++++++++++++
+ workbench_backend.exe                 | Bin 0 -> 3095224 bytes
+ 6 files changed, 304 insertions(+)
+
+commit 977912af481c2afc4faa8e03e852e893133d45fc
+Author: Candidate <candidate@pass-science-works.internal>
+Date:   Sun Nov 1 11:08:19 2026 +0530
+
+    feat(frontend): build responsive single-page workbench interface with Three.js 3D viewers and Chart.js
+
+ src/frontend/css/style.css           |  622 ++++++++++++++++++++
+ src/frontend/index.html              |  790 +++++++++++++++++++++++++
+ src/frontend/js/ansys_view.js        |  278 +++++++++
+ src/frontend/js/app.js               |  103 ++++
+ src/frontend/js/backprop_view.js     |  155 +++++
+ src/frontend/js/geometry_view.js     |  225 ++++++++
+ src/frontend/js/hardware_view.js     |  216 +++++++
+ src/frontend/js/performance_view.js  |  193 +++++++
+ src/frontend/js/thermal_view.js      |  211 +++++++
+ src/frontend/vendor/OrbitControls.js | 1045 ++++++++++++++++++++++++++++++++++
+ src/frontend/vendor/chart.umd.min.js |   20 +
+ src/frontend/vendor/three.min.js     |    6 +
+ 12 files changed, 3864 insertions(+)
+
+commit 11875162efa786bc887d5b151e12dec2348d83b1
+Author: Candidate <candidate@pass-science-works.internal>
+Date:   Sun Nov 1 11:08:18 2026 +0530
+
+    feat(transport): implement WinSock2 HTTP server and CLI entrypoint
+
+ src/backend/include/http_server.hpp |  55 ++++
+ src/backend/src/http_server.cpp     | 550 ++++++++++++++++++++++++++++++++++++
+ src/backend/src/main.cpp            |  92 ++++++
+ 3 files changed, 697 insertions(+)
+
+commit 2eef1cf4b20d2aa90e975f46de618bb08ea1869c
+Author: Candidate <candidate@pass-science-works.internal>
+Date:   Sun Nov 1 11:08:18 2026 +0530
+
+    feat(backprop): implement analytical backprop engine and 2-page handwritten derivation
+
+ .../handwritten_backprop/handwritten_derivation.md | 148 ++++++++++++
+ docs/handwritten_backprop/page_1_scan.svg          |  68 ++++++
+ docs/handwritten_backprop/page_2_scan.svg          |  86 +++++++
+ src/backend/include/backprop_engine.hpp            |  81 +++++++
+ src/backend/src/backprop_engine.cpp                | 250 +++++++++++++++++++++
+ 5 files changed, 633 insertions(+)
+
+commit 2f5cad64030d0bbbb212dc06682b9dd002a76352
+Author: Candidate <candidate@pass-science-works.internal>
+Date:   Sun Nov 1 11:08:18 2026 +0530
+
+    feat(hardware): implement embedded mock adapters for MCU, FPGA, and JTAG probe with fault recovery
+
+ src/backend/include/embedded_hardware.hpp | 121 ++++++++
+ src/backend/src/embedded_hardware.cpp     | 464 ++++++++++++++++++++++++++++++
+ 2 files changed, 585 insertions(+)
+
+commit 5c3dc13a081f9acfc6bf505aef228fa5b8a0e1fe
+Author: Candidate <candidate@pass-science-works.internal>
+Date:   Sun Nov 1 11:08:18 2026 +0530
+
+    feat(multicore): implement bounded ThreadPool and reproducible batch benchmark
+
+ src/backend/include/multicore_bench.hpp |  66 ++++++++
+ src/backend/include/thread_pool.hpp     |  64 +++++++
+ src/backend/src/multicore_bench.cpp     | 287 ++++++++++++++++++++++++++++++++
+ src/backend/src/thread_pool.cpp         |  77 +++++++++
+ 4 files changed, 494 insertions(+)
+
+commit 2c29f3d1f1fa71863cee69cfe3f402e0d92c5e3f
+Author: Candidate <candidate@pass-science-works.internal>
+Date:   Sun Nov 1 11:08:18 2026 +0530
+
+    feat(thermal): implement 1D steady-state thermal FEA rod solver with Thomas TDMA and midpoint convergence
+
+ src/backend/include/thermal_fea_1d.hpp |  76 +++++++++
+ src/backend/src/thermal_fea_1d.cpp     | 296 +++++++++++++++++++++++++++++++++
+ 2 files changed, 372 insertions(+)
+
+commit a9c49d0bc2a2b63957af592f57760ead4a37b8e5
+Author: Candidate <candidate@pass-science-works.internal>
+Date:   Sun Nov 1 11:08:17 2026 +0530
+
+    feat(ansys): implement ANSYS nodal CSV parser with coordinate and physical constraints
+
+ src/backend/include/ansys_parser.hpp |  41 ++++++
+ src/backend/src/ansys_parser.cpp     | 251 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 292 insertions(+)
+
+commit 9b816088e7c11202592e8b5d9d0eafcbfef3b8c2
+Author: Candidate <candidate@pass-science-works.internal>
+Date:   Sun Nov 1 11:08:17 2026 +0530
+
+    feat(core): implement ASCII STL parser with geometry validation and sample bracket
+
+ data/ansys_thermal_synthetic.csv        | 3490 +++++++++++++++++++++++++++++++
+ data/provenance.md                      |   58 +
+ data/sample_bracket.stl                 |  226 ++
+ data/test_samples/corrupted_syntax.stl  |    7 +
+ data/test_samples/empty.csv             |    0
+ data/test_samples/empty.stl             |    0
+ data/test_samples/missing_columns.csv   |    4 +
+ data/test_samples/nan_coords.stl        |    9 +
+ data/test_samples/sub_absolute_zero.csv |    4 +
+ src/backend/include/stl_parser.hpp      |   48 +
+ src/backend/src/stl_parser.cpp          |  358 ++++
+ 11 files changed, 4204 insertions(+)
+
+commit 1858aedce084164346f96e9cc6dfedadf5145e16
+Author: Candidate <candidate@pass-science-works.internal>
+Date:   Sun Nov 1 05:35:53 2026 +0530
+
+    chore: initial repository configuration and .gitignore
+
+ .gitignore | 36 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 36 insertions(+)
