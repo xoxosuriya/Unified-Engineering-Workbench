@@ -1,0 +1,15 @@
+﻿=================================================================
+ PASS SCIENCE WORKS  |  R&D INTERNSHIP 2026-2027                 
+ UNIFIED ENGINEERING WORKBENCH                                   
+ C++17 Core Engine & High-Performance Embedded Backend           
+=================================================================
+
+[FEA] Running 1D Thermal FEA Steady-State Rod Solver...
+# 1D Thermal FEA Mesh Convergence Study
+# Parameters: L=1.00000000 m, A=0.00010000 m^2, k=10.00000000 W/(m K), q=10000.00000000 W/m^3, T(0)=100.00000000 C, T(L)=20.00000000 C
+mesh_N,element_size_h_m,max_midpoint_error_C,theoretical_midpoint_error_C,max_nodal_error_C,error_reduction_ratio,observed_convergence_rate
+10,0.10000000,1.25000000,1.25000000,0.00000000,1.00000000,2.00000000
+20,0.05000000,0.31250000,0.31250000,0.00000000,4.00000000,2.00000000
+40,0.02500000,0.07812500,0.07812500,0.00000000,4.00000000,2.00000000
+80,0.01250000,0.01953125,0.01953125,0.00000000,4.00000000,2.00000000
+

@@ -1,0 +1,18 @@
+﻿=================================================================
+ PASS SCIENCE WORKS  |  R&D INTERNSHIP 2026-2027                 
+ UNIFIED ENGINEERING WORKBENCH                                   
+ C++17 Core Engine & High-Performance Embedded Backend           
+=================================================================
+
+[BENCH] Running Multicore Parallel Batch Solver Benchmark...
+# Unified Engineering Workbench - Multicore Execution Benchmark Results
+# CPU: 13th Gen Intel(R) Core(TM) i5-13420H | Logical Cores: 12
+# Compiler: GCC 16.2.0 | Flags: -O2 / Release with Assertions
+# Workload: 1000 Cases, Mesh N=100, PRNG Seed=42
+# Launch-to-Ready Time: 0.0618 ms | Warm-up Time: 3.8778 ms
+# Serial/Parallel Agreement Max Difference: 0.0000000000e+00 C (Threshold <= 1e-8 C: PASSED)
+workers,repetition_1_ms,repetition_2_ms,repetition_3_ms,repetition_4_ms,repetition_5_ms,median_ms,mean_ms,speedup_T1_over_Tp,efficiency
+1,3.5276,4.5170,4.2597,6.1317,4.0428,4.2597,4.4958,1.0000,1.0000
+2,3.1738,4.8530,3.7044,3.6221,4.5889,3.7044,3.9884,1.1499,0.5750
+4,3.4165,2.7178,3.1307,2.3448,2.9844,2.9844,2.9188,1.4273,0.3568
+
