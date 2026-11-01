@@ -38,3 +38,5 @@ $RECYCLE.BIN/
 
 # Scratch testing scripts
 scratch/
+dist/
+package.ps1
