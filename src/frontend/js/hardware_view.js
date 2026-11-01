@@ -135,7 +135,7 @@ const HardwareView = {
     if (this.telemetryInterval) clearInterval(this.telemetryInterval);
     this.telemetryInterval = setInterval(() => {
       this.pollTelemetry();
-    }, 200); // 5 Hz polling
+    }, 100); // 10 Hz polling
   },
 
   pollTelemetry() {

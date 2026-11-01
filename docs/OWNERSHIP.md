@@ -7,7 +7,7 @@
 ---
 
 ## 1. Candidate Authorship & Architectural Responsibility
-The following components represent original engineering designs, mathematical derivations, and C++ implementations designed and verified by candidate `RA2311047010144`:
+The following components represent engineering designs, mathematical formulations, and C++ implementations verified and integrated by candidate `RA2311047010144`, utilizing AI-assisted code generation for initial scaffolding and mathematical drafts (see [`AI_LOG.md`](./AI_LOG.md) for transparent disclosure). The candidate must review and edit this statement to accurately reflect what is true regarding human versus AI contributions:
 
 1. **C++17 Numerical & Parsing Engine (`src/backend/src/`):**
    - `stl_parser.cpp`: Deterministic state machine tokenizer for ASCII STL format with bounding box, triangular area integration, coordinate bounds checking, and strict grammar diagnostics.
@@ -27,8 +27,8 @@ The following components represent original engineering designs, mathematical de
    - Custom frontend controllers (`app.js`, `geometry_view.js`, `ansys_view.js`, `thermal_view.js`, `performance_view.js`, `hardware_view.js`, `backprop_view.js`) with client-side parameter validation, multi-mesh curve plotting, raycast tooltips, and real-time fault recovery triggers.
 
 4. **Documentation & Mathematics:**
-   - `docs/Workbench_Report.md`: Comprehensive engineering report detailing mathematics, CAD geometry, multicore scaling, and embedded architecture.
-   - `docs/handwritten_backprop/`: Physical handwritten derivation of Task F backpropagation on paper with photographed pages.
+   - `docs/Workbench_Report.md`: Technical engineering report detailing mathematics, CAD geometry, multicore scaling, and embedded architecture.
+   - `docs/handwritten_backprop/`: Typed mathematical reference document (`handwritten_derivation.md`) for Task F backpropagation; physical paper derivation photos to be photographed and added by the candidate.
    - Verified datasets in `data/` and negative test specimens in `data/test_samples/`.
 
 ---

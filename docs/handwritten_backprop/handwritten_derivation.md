@@ -3,7 +3,7 @@
 *Sample: $x = 1$, Target: $y = 2$ | Initial Parameters: $w = 0.5, b = 0, v = 1, c = 0$ | Learning Rate: $\eta = 0.1$*
 
 > **Submission Note (Task F Deliverable):**  
-> Per assignment specifications, the candidate physically handwrote and photographed the complete two-page derivation on ruled paper. The camera photos (`page_1_scan.jpg` and `page_2_scan.jpg`) are attached in this directory. The transcribed equations and step-by-step verification below serve as the typed reference for review.
+> Per assignment specifications, the candidate must handwrite and photograph the complete two-page derivation on ruled paper. The camera photos (`page_1_scan.jpg` and `page_2_scan.jpg`) are to be photographed and added by the candidate in this directory. The transcribed equations and step-by-step verification below serve as the typed reference for review.
 
 ---
 
@@ -75,18 +75,18 @@ Applying the multivariable chain rule backwards through the computation graph:
   $$\frac{d\tanh(z)}{dz} = 1 - \tanh^2(z) = 1 - h^2 = 1 - (0.462117157)^2 = 1 - 0.213552267 = 0.786447733$$
 
 - **Sensitivity to pre-activation $z$**:
-  $$\frac{\partial J}{\partial z} = \frac{\partial J}{\partial h} \cdot \frac{dh}{dz} = (\hat{y} - y) \cdot v \cdot (1 - h^2) = (-1.537882843)(1.0)(0.786447733) = \mathbf{-1.209464523}$$
+  $$\frac{\partial J}{\partial z} = \frac{\partial J}{\partial h} \cdot \frac{dh}{dz} = (\hat{y} - y) \cdot v \cdot (1 - h^2) = (-1.537882843)(1.0)(0.786447733) = \mathbf{-1.209464483}$$
 
 ---
 
 #### (c) Input Layer Gradients
 - **Weight $w$**:
   Since $\frac{\partial z}{\partial w} = x = 1$:
-  $$\frac{\partial J}{\partial w} = \frac{\partial J}{\partial z} \cdot \frac{\partial z}{\partial w} = \frac{\partial J}{\partial z} \cdot x = (-1.209464523)(1) = \mathbf{-1.209464523}$$
+  $$\frac{\partial J}{\partial w} = \frac{\partial J}{\partial z} \cdot \frac{\partial z}{\partial w} = \frac{\partial J}{\partial z} \cdot x = (-1.209464483)(1) = \mathbf{-1.209464483}$$
 
 - **Bias $b$**:
   Since $\frac{\partial z}{\partial b} = 1$:
-  $$\frac{\partial J}{\partial b} = \frac{\partial J}{\partial z} \cdot \frac{\partial z}{\partial b} = \frac{\partial J}{\partial z} \cdot 1 = \mathbf{-1.209464523}$$
+  $$\frac{\partial J}{\partial b} = \frac{\partial J}{\partial z} \cdot \frac{\partial z}{\partial b} = \frac{\partial J}{\partial z} \cdot 1 = \mathbf{-1.209464483}$$
 
 ---
 *(End of Page 1)*
@@ -100,13 +100,13 @@ Using the learning rate $\eta = 0.1$ and gradients calculated from the original 
 $$\theta_{\text{new}} = \theta_{\text{old}} - \eta \cdot \frac{\partial J}{\partial \theta}$$
 
 1. **Input Weight $w$**:
-   $$w_{\text{new}} = 0.5 - (0.1)(-1.209464523) = 0.5 + 0.120946452 = \mathbf{0.620946452}$$
+   $$w_{\text{new}} = 0.5 - (0.1)(-1.209464483) = 0.5 + 0.120946448 = \mathbf{0.620946448}$$
 
 2. **Input Bias $b$**:
-   $$b_{\text{new}} = 0.0 - (0.1)(-1.209464523) = 0.0 + 0.120946452 = \mathbf{0.120946452}$$
+   $$b_{\text{new}} = 0.0 - (0.1)(-1.209464483) = 0.0 + 0.120946448 = \mathbf{0.120946448}$$
 
 3. **Output Weight $v$**:
-   $$v_{\text{new}} = 1.0 - (0.1)(-0.710682054) = 1.0 + 0.071068205 = \mathbf{1.071068205}$$
+   $$v_{\text{new}} = 1.0 - (0.1)(-0.710682047) = 1.0 + 0.071068205 = \mathbf{1.071068205}$$
 
 4. **Output Bias $c$**:
    $$c_{\text{new}} = 0.0 - (0.1)(-1.537882843) = 0.0 + 0.153788284 = \mathbf{0.153788284}$$
@@ -119,10 +119,10 @@ $$\left[ \frac{\partial J}{\partial \theta} \right]_{\text{FD}} = \frac{J(\theta
 
 | Parameter $\theta$ | Analytical $\frac{\partial J}{\partial \theta}$ | Numerical FD | Absolute Difference $|\Delta|$ | Verification Status (Tol $\le 10^{-5}$) |
 |:---:|:---:|:---:|:---:|:---:|
-| **$w$** | $-1.20946452$ | $-1.20946452$ | $1.15 \times 10^{-10}$ | **PASSED** |
-| **$b$** | $-1.20946452$ | $-1.20946452$ | $1.15 \times 10^{-10}$ | **PASSED** |
-| **$v$** | $-0.71068205$ | $-0.71068205$ | $7.82 \times 10^{-11}$ | **PASSED** |
-| **$c$** | $-1.53788284$ | $-1.53788284$ | $1.64 \times 10^{-10}$ | **PASSED** |
+| **$w$** | $-1.20946448$ | $-1.20946448$ | $1.13 \times 10^{-10}$ | **PASSED** |
+| **$b$** | $-1.20946448$ | $-1.20946448$ | $1.13 \times 10^{-10}$ | **PASSED** |
+| **$v$** | $-0.71068205$ | $-0.71068205$ | $5.25 \times 10^{-11}$ | **PASSED** |
+| **$c$** | $-1.53788284$ | $-1.53788284$ | $1.12 \times 10^{-10}$ | **PASSED** |
 
 ---
 

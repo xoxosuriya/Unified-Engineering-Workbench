@@ -18,11 +18,11 @@ This document records the provenance, coordinate systems, dimensional units, sch
   - $Z$-axis: Extends vertically along upright flange ($0.00\,m \le z \le 0.10\,m$).
 - **Geometry Characteristics**:
   - Triangles: 32 planar triangular facets
-  - Total Surface Area: $0.0463\,m^2$ ($462.97\,\text{cm}^2$)
+  - Total Surface Area: $0.0463\,m^2$ ($463.00\,\text{cm}^2$ / $46,300\,\text{mm}^2$)
   - Bounding Box: Min $[0.00, 0.00, 0.00]\,m$, Max $[0.10, 0.08, 0.10]\,m$ ($100 \times 80 \times 100\,\text{mm}$)
-  - Facet Normals: Open surface shell structure (non-watertight); individual facet normals represent planar facet normal vectors, rendered using double-sided lighting.
+  - Mesh Topology: Open surface mesh (sheet metal bracket with open boundary edges, not a closed watertight volume); rendered using double-sided lighting.
 - **License**: Creative Commons Zero (CC0 1.0 Universal - Public Domain Dedication).
-- **Tested File-Size Limits**: Tested up to 50 MB / 500,000 triangles.
+- **Tested File-Size Limits**: Server enforces a strict 50 MB payload cap. Empirical stress testing on the running server confirmed parsing up to 270,000 facets (38.79 MB ASCII STL in 20,789.51 ms, producing 43.74 MB JSON; see `results/file_limits.csv`).
 
 ---
 
@@ -43,7 +43,7 @@ This document records the provenance, coordinate systems, dimensional units, sch
   - Convective heat transfer coefficient to ambient air on flange faces.
   - Temperature Range: Min $36.87^\circ\text{C}$, Max $104.00^\circ\text{C}$, Average $65.08^\circ\text{C}$.
   - Total Nodes: 3,485 nodes.
-- **Tested File-Size Limits**: Tested up to 50 MB / 500,000 nodes.
+- **Tested File-Size Limits**: Server enforces a strict 50 MB payload cap. Empirical stress testing on the running server confirmed parsing up to 500,000 nodes (13.84 MB CSV in 4,281.23 ms, producing 22.12 MB JSON; see `results/file_limits.csv`).
 
 ---
 

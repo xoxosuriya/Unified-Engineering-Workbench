@@ -22,6 +22,9 @@
 4. Press **`F5`** (or click Run). The packaged application starts immediately in one single action.
    - *Editor Extension Prerequisite:* Standard C/C++ extension (`ms-vscode.cpptools`) or CMake Tools if developing/building from source. Note: The standalone `Launch.exe` does **not** require the editor, extensions, or internet.
 
+### Version Control Note
+The initial commits were created in one batch after initial development, and all subsequent enhancements, bug fixes, security hardening, and empirical evidence runs are recorded as individual, transparent commits per item.
+
 ---
 
 ## 2. System Architecture
@@ -58,11 +61,11 @@ The Unified Engineering Workbench enforces a decoupled three-tier architecture:
 
 | Format | File Extension | Schema / Header | Tested File Size Limit | Diagnostic Handling |
 |:---|:---:|:---|:---:|:---|
-| **ASCII STL Geometry** | `.stl` | `solid <name> ... facet normal ... outer loop ... 3x vertex ... endloop ... endfacet ... endsolid` | Tested to **50 MB** / 500,000 facets | Rejects 0-byte files, binary STL headers, non-finite values (`NaN`, `±Inf`), and malformed facets with exact line numbers. |
-| **ANSYS Nodal Temperatures** | `.csv` | `node_id,x_m,y_m,z_m,temperature_C` (labeled synthetic in header) | Tested to **50 MB** / 500,000 nodes | Validates header format, positive integer IDs, finite coordinates, and rejects temperatures below absolute zero ($-273.15^\circ\text{C}$). |
+| **ASCII STL Geometry** | `.stl` | `solid <name> ... facet normal ... outer loop ... 3x vertex ... endloop ... endfacet ... endsolid` | **50 MB** cap (benchmarked to 270,000 facets / 38.79 MB; see `results/file_limits.csv`) | Rejects 0-byte files, binary STL headers, non-finite values (`NaN`, `±Inf`), and malformed facets with exact line numbers. |
+| **ANSYS Nodal Temperatures** | `.csv` | `node_id,x_m,y_m,z_m,temperature_C` (labeled synthetic in header) | **50 MB** cap (benchmarked to 500,000 nodes / 13.84 MB; see `results/file_limits.csv`) | Validates header format, positive integer IDs, finite coordinates, and rejects temperatures below absolute zero ($-273.15^\circ\text{C}$) or $> 5000^\circ\text{C}$. |
 
 Sample files supplied with the distribution:
-- [`data/sample_bracket.stl`](./data/sample_bracket.stl): Analytical CAD model of a structural mounting bracket with dual stiffener ribs (32 facets, area $0.0463\text{ m}^2$ ($462.97\text{ cm}^2$), bounding box $100 \times 80 \times 100\text{ mm}$, units in meters). Full provenance documented in [`data/provenance.md`](./data/provenance.md).
+- [`data/sample_bracket.stl`](./data/sample_bracket.stl): Analytical CAD model of a structural mounting bracket with dual stiffener ribs (32 facets, area $0.0463\text{ m}^2$ ($463.00\text{ cm}^2$ / $46,300\text{ mm}^2$), bounding box $100 \times 80 \times 100\text{ mm}$, open surface shell mesh, units in meters). Full provenance documented in [`data/provenance.md`](./data/provenance.md).
 - [`data/ansys_thermal_synthetic.csv`](./data/ansys_thermal_synthetic.csv): Synthetic steady-state nodal temperature field on the bracket geometry (3,485 nodes, range $36.87^\circ\text{C}$ to $104.00^\circ\text{C}$, average $65.08^\circ\text{C}$). Clearly disclosed as synthetic.
 - Negative test cases in [`data/test_samples/`](./data/test_samples/): `empty.stl`, `corrupted_syntax.stl`, `nan_coords.stl`, `missing_columns.csv`, `sub_absolute_zero.csv`, `negative_coords.stl`.
 
@@ -82,10 +85,10 @@ Sample files supplied with the distribution:
 - Spatial $T(x)$ profile exported across all meshes in [`results/fea_profile.csv`](./results/fea_profile.csv).
 
 ### Task D: Multicore Execution & Numerical Agreement
-- Persistent worker pool testing 3,000 independent batch solves across $p \in \{1, 2, 4\}$ threads with fixed seed $42$ on an 8-core host CPU (GCC `-O3`).
+- Persistent worker pool testing 20,000 independent batch solves across $p \in \{1, 2, 4\}$ threads with mesh $N=200$ and fixed seed $42$ on an 8-core host CPU (GNU 16.2.0 `-O3`).
 - **Numerical Agreement:** Serial and parallel results match identically across all nodes:
   $$\max |T_{\text{serial}} - T_{\text{parallel}}| = \mathbf{0.00 \times 10^0\ ^\circ\text{C}} \le 1.0 \times 10^{-8\ \circ}\text{C} \quad (\mathbf{PASSED})$$
-- 5 measured repetitions, median time (14.90 ms, 8.79 ms, 7.12 ms), speedup ($1.70\times$ on 2 workers, $2.09\times$ on 4 workers), and efficiency recorded in [`results/multicore_scaling.csv`](./results/multicore_scaling.csv).
+- 5 measured repetitions, median times (**276.63 ms** on 1 worker, **153.61 ms** on 2 workers, **85.04 ms** on 4 workers), speedup (**$1.8009\times$** on 2 workers, **$3.2531\times$** on 4 workers), and efficiency recorded in [`results/multicore_scaling.csv`](./results/multicore_scaling.csv).
 
 ### Task E: Embedded Integration Architecture
 - Models a modular testbench for an STM32H7 MCU, Xilinx Artix-7 FPGA, and Segger J-Link probe.
@@ -94,11 +97,11 @@ Sample files supplied with the distribution:
 
 ### Task F: Simple Handwritten Backpropagation
 - Sample $x=1, y=2$, initial $w=0.5, b=0, v=1, c=0, \eta=0.1$.
-- Step 0 forward: $z=0.5, h=0.462117, \hat{y}=0.462117$, Loss $J = 1.182542$.
-- Analytical derivatives: $\frac{\partial J}{\partial c} = -1.537883, \frac{\partial J}{\partial v} = -0.710682, \frac{\partial J}{\partial w} = -1.209465, \frac{\partial J}{\partial b} = -1.209465$.
-- Simultaneous Step 1 update: $w_1 = 0.620946, b_1 = 0.120946, v_1 = 1.071068, c_1 = 0.153788$.
-- **Central Finite Difference Check ($\epsilon = 10^{-6}$):** Verified across all 4 parameters with error $< 2 \times 10^{-10} \le 10^{-5}$ (`PASSED`).
-- Legible 2-page handwritten scans provided in [`docs/handwritten_backprop/`](./docs/handwritten_backprop/).
+- Step 0 forward: $z=0.5, h=0.46211716, \hat{y}=0.46211716$, Loss $J = 1.18254182$.
+- Analytical derivatives: $\frac{\partial J}{\partial c} = -1.53788284, \frac{\partial J}{\partial v} = -0.71068205, \frac{\partial J}{\partial w} = -1.20946448, \frac{\partial J}{\partial b} = -1.20946448$.
+- Simultaneous Step 1 update: $w_1 = 0.62094645, b_1 = 0.12094645, v_1 = 1.07106820, c_1 = 0.15378828$.
+- **Central Finite Difference Check ($\epsilon = 10^{-6}$):** Verified across all 4 parameters with error $< 1.13 \times 10^{-10} \le 10^{-5}$ (`PASSED`).
+- Typed 2-page derivation provided in [`docs/handwritten_backprop/`](./docs/handwritten_backprop/handwritten_derivation.md) (photos of handwritten pages to be photographed and added by candidate).
 
 ---
 
@@ -117,12 +120,12 @@ cmake --build build -j
 
 ### Running Automated Test Suite:
 ```powershell
-# Run the 18-test positive, negative, disk file, and numerical accuracy suite
+# Run the 23-test positive, negative, disk file, and numerical accuracy suite
 ./workbench_tests.exe
 ```
 *Expected Output:*
 ```
-Test Summary: 18 Passed, 0 Failed (100% Pass Rate)
+Test Summary: 23 Passed, 0 Failed (100% Pass Rate)
 ```
 
 ### Command-Line CLI Execution:
@@ -144,7 +147,7 @@ Test Summary: 18 Passed, 0 Failed (100% Pass Rate)
 RA2311047010144_Workbench/
 ├── Launch.exe                       # Standalone zero-prerequisite Windows launcher
 ├── workbench_backend.exe           # CLI runner & headless server executable
-├── workbench_tests.exe             # 18-test automated unit & verification executable
+├── workbench_tests.exe             # 23-test automated unit & verification executable
 ├── CMakeLists.txt                   # Standard root CMake build configuration
 ├── DEPENDENCIES.md                  # Third-party inventory, versions & MIT license texts
 ├── README.md                        # Primary project documentation
@@ -168,20 +171,23 @@ RA2311047010144_Workbench/
 │   ├── test_samples/                # Negative test specimens (empty, NaN, corrupt, bounds)
 │   └── provenance.md                # Provenance and schema documentation
 ├── tests/
-│   └── test_runner.cpp              # 18-test automated unit and numerical verification suite
+│   ├── test_runner.cpp              # 23-test automated unit and numerical verification suite
+│   └── smoke_routes.ps1             # Automated dynamic-port HTTP route smoke test
 ├── results/
 │   ├── fea_convergence.csv          # Clean FEA convergence data
 │   ├── fea_profile.csv              # Spatial T(x) temperature profile across all meshes
 │   ├── multicore_scaling.csv        # Clean multicore timing repetitions & speedup
 │   ├── backprop_loss.csv            # Clean 100-step training loss history
+│   ├── file_limits.csv              # Measured parser file size and timing limits
+│   ├── environment.json             # Benchmark environment run metadata
 │   └── plots/                       # Labelled vector plots (SVG)
 └── docs/
     ├── Workbench_Report.md          # Comprehensive technical engineering report
     ├── AI_LOG.md                    # Transparent AI-assistance log & critique records
     ├── OWNERSHIP.md                 # Statement of ownership and reused code disclosures
     ├── DEMONSTRATION_WALKTHROUGH.md # Verification walkthrough logs
-    ├── workbench_demo.webp          # Animated browser demonstration session recording
-    └── handwritten_backprop/        # Handwritten derivation document & photo scans
+    ├── workbench_demo.webp          # Demonstration recording (14.92 MB silent screen capture of older build)
+    └── handwritten_backprop/        # Handwritten derivation reference document (photos to be added by candidate)
 ```
 
 ---

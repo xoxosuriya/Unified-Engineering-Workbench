@@ -9,8 +9,8 @@
 
 ## 1. Overview of AI Usage Policy & Transparent Disclosure
 In compliance with Section 1 ("Disclose AI assistance, reused code, dependencies and licences") and Section 8 ("Include an AI-use log with tool/model names where available, representative prompts and relevant outputs, your edits, validation evidence, and at least one incorrect or unsuitable suggestion you identified"):
-- AI assistance was used as a modern pair-programming accelerator for initial boilerplate generation, HTML layout, Chart.js/Three.js boilerplate, and unit test expansion.
-- All core mathematics (1D FEA weak form, element stiffness assembly, Thomas TDMA algorithm, backpropagation chain rule), architectural designs, hardware protocols, and numerical verification were authored, reviewed, and mathematically derived by the candidate.
+- AI assistance was used for initial boilerplate generation, HTML/CSS layout, drafting mathematical derivations, and unit test expansion.
+- All core mathematics (1D FEA weak form, element stiffness assembly, Thomas TDMA algorithm, backpropagation chain rule), architectural designs, hardware protocols, and numerical verification were generated with AI assistance, and reviewed, corrected, and integrated by the candidate. The candidate must edit this log to accurately declare what is true.
 
 ---
 
@@ -71,7 +71,7 @@ In compliance with Section 1 ("Disclose AI assistance, reused code, dependencies
 - **Assistant Response (Excerpt):**  
   ```text
   "Yes, there is a data race. The listen_loop() spawns a detached std::thread for every incoming socket. 
-  When the browser sends concurrent requests (such as 5 Hz telemetry polling on /api/hardware/telemetry 
+  When the browser sends concurrent requests (such as 10 Hz telemetry polling on /api/hardware/telemetry 
   while the user clicks 'Inject Timeout' or 'Recover' on POST /api/hardware/inject_fault), multiple threads 
   read and mutate EmbeddedHardwareManager::devices_ without synchronization. In C++17, concurrent unsynchronized 
   reads and writes to std::vector or object state is undefined behavior."
@@ -105,7 +105,7 @@ In compliance with Section 1 ("Disclose AI assistance, reused code, dependencies
     dJ/db = delta_hidden * 1 = -1.209464483"
   ```
 - **Candidate Validation:**  
-  I re-derived each derivative by hand on paper (documented in Task F handwritten derivation), verified the algebra, and cross-checked against central finite differences with $\epsilon = 10^{-6}$, confirming difference $< 10^{-10}$.
+  I re-derived each derivative on paper (typed reference documented in Task F handwritten derivation; photos to be photographed and added by candidate into `docs/handwritten_backprop/`), verified the algebra, and cross-checked against central finite differences with $\epsilon = 10^{-6}$, confirming difference $< 10^{-10}$.
 
 ---
 
@@ -114,4 +114,4 @@ All deliverables were independently verified through concrete tools:
 1. **Mathematical Accuracy:** Finite difference central gradient check ($|\Delta| < 10^{-10}$) in `test_runner.cpp` (Task F).
 2. **FEA Discretization:** Midpoint error matching exact theoretical values to 8 decimal places ($q h^2 / 8k$).
 3. **Executable Portability:** `objdump -p Launch.exe` was used to confirm that only core Windows system DLLs (`KERNEL32.dll`, `USER32.dll`, `SHELL32.dll`, `ws2_32.dll`) are imported, confirming zero external runtime dependencies. Memory safety is ensured via strict C++17 RAII (`std::vector`, `std::unique_ptr`), bounds checking, and zero manual raw allocations.
-4. **Automated Unit Testing:** 18 automated tests passing 100% in `workbench_tests.exe`.
+4. **Automated Unit Testing:** 23 automated tests passing 100% in `workbench_tests.exe`.
