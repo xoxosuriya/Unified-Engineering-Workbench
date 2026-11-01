@@ -1,0 +1,9 @@
+solid nan_test
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex NaN 0.0 0.0
+      vertex 1.0 0.0 0.0
+      vertex 0.0 1.0 0.0
+    endloop
+  endfacet
+endsolid nan_test
