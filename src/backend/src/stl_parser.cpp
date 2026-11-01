@@ -51,13 +51,16 @@ std::string StlParseResult::to_json() const {
     ss << "\"solid_name\":\"" << solid_name << "\",";
     ss << "\"facet_count\":" << facet_count << ",";
     ss << "\"file_size_bytes\":" << file_size_bytes << ",";
-    if (std::isfinite(surface_area)) {
+    if (success && facet_count > 0 && std::isfinite(surface_area) &&
+        min_bound.is_finite() && std::abs(min_bound.x) < 1e29 &&
+        max_bound.is_finite() && std::abs(max_bound.x) < 1e29) {
         ss << "\"surface_area\":" << surface_area << ",";
+        ss << "\"bounds\":{\"min\":[" << min_bound.x << "," << min_bound.y << "," << min_bound.z << "],"
+           << "\"max\":[" << max_bound.x << "," << max_bound.y << "," << max_bound.z << "]},";
     } else {
         ss << "\"surface_area\":null,";
+        ss << "\"bounds\":null,";
     }
-    ss << "\"bounds\":{\"min\":[" << min_bound.x << "," << min_bound.y << "," << min_bound.z << "],"
-       << "\"max\":[" << max_bound.x << "," << max_bound.y << "," << max_bound.z << "]},";
     
     // Flat vertex buffer: [x1,y1,z1, x2,y2,z2, x3,y3,z3, ...]
     ss << "\"vertices\":[";

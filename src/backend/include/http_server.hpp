@@ -38,6 +38,9 @@ public:
     std::string get_base_url() const;
     std::string get_session_token() const { return session_token_; }
 
+    static void set_process_start_time(std::chrono::steady_clock::time_point tp);
+    static double get_launch_to_ready_ms();
+
 private:
     void listen_loop();
     void handle_client(uintptr_t client_socket);

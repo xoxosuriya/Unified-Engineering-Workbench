@@ -36,11 +36,22 @@ std::string AnsysParseResult::to_json() const {
     ss << "\"is_synthetic\":" << (is_synthetic ? "true" : "false") << ",";
     ss << "\"node_count\":" << node_count << ",";
     ss << "\"file_size_bytes\":" << file_size_bytes << ",";
-    ss << "\"min_temp_C\":" << min_temp_C << ",";
-    ss << "\"max_temp_C\":" << max_temp_C << ",";
-    ss << "\"avg_temp_C\":" << avg_temp_C << ",";
-    ss << "\"bounds\":{\"min\":[" << min_bound.x << "," << min_bound.y << "," << min_bound.z << "],"
-       << "\"max\":[" << max_bound.x << "," << max_bound.y << "," << max_bound.z << "]},";
+    if (success && node_count > 0 && std::isfinite(min_temp_C) && std::abs(min_temp_C) < 1e29 &&
+        std::isfinite(max_temp_C) && std::abs(max_temp_C) < 1e29 &&
+        std::isfinite(avg_temp_C) && std::abs(avg_temp_C) < 1e29 &&
+        min_bound.is_finite() && std::abs(min_bound.x) < 1e29 &&
+        max_bound.is_finite() && std::abs(max_bound.x) < 1e29) {
+        ss << "\"min_temp_C\":" << min_temp_C << ",";
+        ss << "\"max_temp_C\":" << max_temp_C << ",";
+        ss << "\"avg_temp_C\":" << avg_temp_C << ",";
+        ss << "\"bounds\":{\"min\":[" << min_bound.x << "," << min_bound.y << "," << min_bound.z << "],"
+           << "\"max\":[" << max_bound.x << "," << max_bound.y << "," << max_bound.z << "]},";
+    } else {
+        ss << "\"min_temp_C\":null,";
+        ss << "\"max_temp_C\":null,";
+        ss << "\"avg_temp_C\":null,";
+        ss << "\"bounds\":null,";
+    }
 
     // Compact node arrays: node_ids, positions [x,y,z], temperatures
     ss << "\"node_ids\":[";
@@ -209,6 +220,12 @@ AnsysParseResult AnsysParser::parse_string(const std::string& content) {
         if (node.temperature_C < -273.15) {
             res.success = false;
             res.error_message = "Line " + std::to_string(line_num) + ": Temperature (" + tokens[4] + " C) is below absolute zero (-273.15 C).";
+            return res;
+        }
+
+        if (std::abs(node.temperature_C) > 5000.0) {
+            res.success = false;
+            res.error_message = "Line " + std::to_string(line_num) + ": Temperature (" + tokens[4] + " C) exceeds allowed range (|T| > 5000 C).";
             return res;
         }
 

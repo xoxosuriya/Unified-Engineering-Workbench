@@ -8,10 +8,10 @@
 
 using namespace workbench;
 
-// Global server instance
 static std::unique_ptr<HttpServer> g_server;
 static HWND g_hwnd = NULL;
 static NOTIFYICONDATAW g_nid = {0};
+static HANDLE g_hMutex = NULL;
 
 #define WM_TRAYICON (WM_USER + 1)
 #define ID_TRAY_OPEN 1001
@@ -104,6 +104,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             if (g_server) {
                 g_server->stop();
             }
+            if (g_hMutex) {
+                ReleaseMutex(g_hMutex);
+                CloseHandle(g_hMutex);
+                g_hMutex = NULL;
+            }
             PostQuitMessage(0);
             break;
         }
@@ -115,8 +120,36 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 }
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
+    (void)hPrevInstance;
+    (void)lpCmdLine;
+    (void)nCmdShow;
+
+    HttpServer::set_process_start_time(std::chrono::steady_clock::now());
+
     // Determine path to frontend web assets
     std::wstring root_dir = get_module_dir();
+
+    // Single-instance guard (named mutex)
+    g_hMutex = CreateMutexW(NULL, TRUE, L"Local\\PassScienceWorks_Workbench_Launch_Mutex");
+    if (GetLastError() == ERROR_ALREADY_EXISTS) {
+        int existing_port = 8080;
+        std::wstring port_file = root_dir + L"\\logs\\port.txt";
+        FILE* fp = _wfopen(port_file.c_str(), L"r");
+        if (fp) {
+            if (fscanf(fp, "%d", &existing_port) != 1 || existing_port <= 0) {
+                existing_port = 8080;
+            }
+            fclose(fp);
+        }
+        std::wstring open_url = L"http://127.0.0.1:" + std::to_wstring(existing_port);
+        ShellExecuteW(NULL, L"open", open_url.c_str(), NULL, NULL, SW_SHOWNORMAL);
+        if (g_hMutex) {
+            CloseHandle(g_hMutex);
+            g_hMutex = NULL;
+        }
+        return 0;
+    }
+
     std::string web_dir = wstring_to_utf8(root_dir) + "/src/frontend";
 
     // Start background C++ HTTP server
@@ -124,6 +157,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     if (!g_server->start()) {
         MessageBoxW(NULL, L"Failed to start local C++ server on port 8080-8100.", 
                     L"Workbench Launch Error", MB_ICONERROR | MB_OK);
+        if (g_hMutex) {
+            ReleaseMutex(g_hMutex);
+            CloseHandle(g_hMutex);
+            g_hMutex = NULL;
+        }
         return 1;
     }
 

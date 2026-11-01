@@ -17,6 +17,25 @@ else()
     endif()
 endif()
 
+# Programmatic compiler and optimization metadata
+set(COMPILER_INFO_STR "${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
+set(OPT_FLAGS_STR "${CMAKE_CXX_FLAGS}")
+if(CMAKE_BUILD_TYPE)
+    string(TOUPPER "${CMAKE_BUILD_TYPE}" UPPER_BUILD_TYPE)
+    if(CMAKE_CXX_FLAGS_${UPPER_BUILD_TYPE})
+        set(OPT_FLAGS_STR "${OPT_FLAGS_STR} ${CMAKE_CXX_FLAGS_${UPPER_BUILD_TYPE}}")
+    endif()
+endif()
+if(NOT MSVC)
+    set(OPT_FLAGS_STR "${OPT_FLAGS_STR} -O3")
+endif()
+string(STRIP "${OPT_FLAGS_STR}" OPT_FLAGS_STR)
+
+add_compile_definitions(
+    WORKBENCH_COMPILER_INFO="${COMPILER_INFO_STR}"
+    WORKBENCH_OPT_FLAGS="${OPT_FLAGS_STR}"
+)
+
 # Include directories
 include_directories(
     src/backend/include

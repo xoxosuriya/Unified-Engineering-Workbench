@@ -1,5 +1,6 @@
 #include "multicore_bench.hpp"
 #include "thread_pool.hpp"
+#include "http_server.hpp"
 #include <random>
 #include <chrono>
 #include <algorithm>
@@ -196,7 +197,9 @@ BenchmarkSummary MulticoreBenchmarker::run_benchmark(const BenchmarkConfig& cfg,
     summary.physical_cores = get_physical_cores();
     summary.total_ram_gb = get_total_ram_gb();
 
-#if defined(__clang__)
+#if defined(WORKBENCH_COMPILER_INFO)
+    summary.compiler_info = WORKBENCH_COMPILER_INFO;
+#elif defined(__clang__)
     summary.compiler_info = "Clang " + std::to_string(__clang_major__) + "." + std::to_string(__clang_minor__);
 #elif defined(__GNUC__)
     summary.compiler_info = "GCC " + std::to_string(__GNUC__) + "." + std::to_string(__GNUC_MINOR__) + "." + std::to_string(__GNUC_PATCHLEVEL__);
@@ -206,7 +209,13 @@ BenchmarkSummary MulticoreBenchmarker::run_benchmark(const BenchmarkConfig& cfg,
     summary.compiler_info = "C++17 Compatible Compiler";
 #endif
 
+#if defined(WORKBENCH_OPT_FLAGS)
+    summary.optimization_flags = WORKBENCH_OPT_FLAGS;
+#else
     summary.optimization_flags = "-O3";
+#endif
+
+    summary.launch_to_ready_ms = HttpServer::get_launch_to_ready_ms();
 
     // Filter worker counts by available hardware concurrency, always including 1
     std::vector<size_t> target_workers;
@@ -231,7 +240,7 @@ BenchmarkSummary MulticoreBenchmarker::run_benchmark(const BenchmarkConfig& cfg,
     auto t_start = std::chrono::high_resolution_clock::now();
     std::vector<ThermalParams1D> batch = generate_batch(cfg);
     auto t_ready = std::chrono::high_resolution_clock::now();
-    summary.launch_to_ready_ms = std::chrono::duration<double, std::milli>(t_ready - t_start).count();
+    summary.batch_generation_ms = std::chrono::duration<double, std::milli>(t_ready - t_start).count();
 
     if (cancel_flag && cancel_flag->load()) {
         summary.was_cancelled = true;
@@ -363,9 +372,14 @@ std::string BenchmarkSummary::to_json() const {
     ss << "\"total_ram_gb\":" << total_ram_gb << ",";
     ss << "\"compiler_info\":\"" << compiler_info << "\",";
     ss << "\"optimization_flags\":\"" << optimization_flags << "\",";
-    ss << "\"launch_to_ready_ms\":" << launch_to_ready_ms << ",";
-    ss << "\"warmup_duration_ms\":" << warmup_duration_ms << ",";
-    ss << "\"max_absolute_temp_diff_C\":" << std::scientific << std::setprecision(10) << max_absolute_temp_diff_C << ",";
+    ss << "\"launch_to_ready_ms\":" << (std::isfinite(launch_to_ready_ms) ? launch_to_ready_ms : 0.0) << ",";
+    ss << "\"batch_generation_ms\":" << (std::isfinite(batch_generation_ms) ? batch_generation_ms : 0.0) << ",";
+    ss << "\"warmup_duration_ms\":" << (std::isfinite(warmup_duration_ms) ? warmup_duration_ms : 0.0) << ",";
+    if (std::isfinite(max_absolute_temp_diff_C) && std::abs(max_absolute_temp_diff_C) < 1e29) {
+        ss << "\"max_absolute_temp_diff_C\":" << std::scientific << std::setprecision(10) << max_absolute_temp_diff_C << ",";
+    } else {
+        ss << "\"max_absolute_temp_diff_C\":null,";
+    }
     ss << std::fixed << std::setprecision(4);
     ss << "\"numerical_agreement_passed\":" << (numerical_agreement_passed ? "true" : "false") << ",";
     ss << "\"was_cancelled\":" << (was_cancelled ? "true" : "false") << ",";
@@ -383,16 +397,17 @@ std::string BenchmarkSummary::to_json() const {
         const auto& wr = worker_results[i];
         ss << "{";
         ss << "\"workers\":" << wr.worker_count << ",";
-        ss << "\"median_ms\":" << wr.median_duration_ms << ",";
-        ss << "\"mean_ms\":" << wr.mean_duration_ms << ",";
-        ss << "\"min_ms\":" << wr.min_duration_ms << ",";
-        ss << "\"max_ms\":" << wr.max_duration_ms << ",";
-        ss << "\"speedup\":" << wr.speedup << ",";
-        ss << "\"efficiency\":" << wr.efficiency << ",";
+        ss << "\"median_ms\":" << (std::isfinite(wr.median_duration_ms) ? wr.median_duration_ms : 0.0) << ",";
+        ss << "\"mean_ms\":" << (std::isfinite(wr.mean_duration_ms) ? wr.mean_duration_ms : 0.0) << ",";
+        ss << "\"min_ms\":" << (std::isfinite(wr.min_duration_ms) ? wr.min_duration_ms : 0.0) << ",";
+        ss << "\"max_ms\":" << (std::isfinite(wr.max_duration_ms) ? wr.max_duration_ms : 0.0) << ",";
+        ss << "\"speedup\":" << (std::isfinite(wr.speedup) ? wr.speedup : 0.0) << ",";
+        ss << "\"efficiency\":" << (std::isfinite(wr.efficiency) ? wr.efficiency : 0.0) << ",";
         ss << "\"repetitions\":[";
         for (size_t r = 0; r < wr.repetition_timings_ms.size(); ++r) {
             if (r > 0) ss << ",";
-            ss << wr.repetition_timings_ms[r].duration_ms;
+            double dur = wr.repetition_timings_ms[r].duration_ms;
+            ss << (std::isfinite(dur) ? dur : 0.0);
         }
         ss << "]";
         ss << "}";

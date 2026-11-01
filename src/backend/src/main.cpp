@@ -20,6 +20,7 @@ void print_banner() {
 }
 
 int main(int argc, char* argv[]) {
+    HttpServer::set_process_start_time(std::chrono::steady_clock::now());
     print_banner();
 
     std::string mode = "server";

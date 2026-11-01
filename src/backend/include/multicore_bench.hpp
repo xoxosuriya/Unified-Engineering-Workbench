@@ -42,6 +42,7 @@ struct BenchmarkSummary {
     std::string optimization_flags;
     
     double launch_to_ready_ms = 0.0;
+    double batch_generation_ms = 0.0;
     double warmup_duration_ms = 0.0;
     
     std::vector<WorkerBenchmarkResult> worker_results;

@@ -17,23 +17,34 @@
 #include <random>
 #include <iomanip>
 
-#if defined(_WIN32)
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <windows.h>
 #pragma comment(lib, "ws2_32.lib")
-#else
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <unistd.h>
-#define SOCKET int
-#define INVALID_SOCKET -1
-#define SOCKET_ERROR -1
-#define closesocket close
-#endif
 
 namespace workbench {
+
+static std::chrono::steady_clock::time_point g_process_start_tp = std::chrono::steady_clock::now();
+static double g_launch_to_ready_ms = 0.0;
+static std::mutex g_log_mutex;
+static std::ofstream g_server_log_file;
+
+void log_server_line(const std::string& line) {
+    std::lock_guard<std::mutex> lock(g_log_mutex);
+    std::cout << line << std::endl;
+    if (g_server_log_file.is_open()) {
+        g_server_log_file << line << std::endl;
+        g_server_log_file.flush();
+    }
+}
+
+void HttpServer::set_process_start_time(std::chrono::steady_clock::time_point tp) {
+    g_process_start_tp = tp;
+}
+
+double HttpServer::get_launch_to_ready_ms() {
+    return g_launch_to_ready_ms;
+}
 
 static std::string get_executable_dir() {
 #if defined(_WIN32)
@@ -185,14 +196,12 @@ std::string HttpServer::get_base_url() const {
 }
 
 bool HttpServer::start() {
-#if defined(_WIN32)
     WSADATA wsaData;
     int wsa_res = WSAStartup(MAKEWORD(2, 2), &wsaData);
     if (wsa_res != 0) {
         std::cerr << "[HttpServer] WSAStartup failed: " << wsa_res << std::endl;
         return false;
     }
-#endif
 
     SOCKET listen_sock = INVALID_SOCKET;
     int bind_port = preferred_port_;
@@ -232,9 +241,26 @@ bool HttpServer::start() {
         return false;
     }
 
+    std::string exe_dir = get_executable_dir();
+    std::string logs_dir = exe_dir + "/logs";
+    CreateDirectoryA(logs_dir.c_str(), NULL);
+    if (!g_server_log_file.is_open()) {
+        g_server_log_file.open(logs_dir + "/server.log", std::ios::out | std::ios::app);
+    }
+
+    // Save active port for Launch.exe redirection
+    std::ofstream port_file(logs_dir + "/port.txt", std::ios::out | std::ios::trunc);
+    if (port_file.is_open()) {
+        port_file << actual_port_ << "\n";
+    }
+
+    auto ready_tp = std::chrono::steady_clock::now();
+    g_launch_to_ready_ms = std::chrono::duration<double, std::milli>(ready_tp - g_process_start_tp).count();
+    if (g_launch_to_ready_ms < 0.0) g_launch_to_ready_ms = 0.0;
+
     is_running_ = true;
     server_thread_ = std::thread(&HttpServer::listen_loop, this);
-    std::cout << "[HttpServer] Serving on " << get_base_url() << std::endl;
+    log_server_line("[HttpServer] Serving on " + get_base_url() + " (launch_to_ready: " + std::to_string(g_launch_to_ready_ms) + " ms)");
     return true;
 }
 
@@ -251,9 +277,8 @@ void HttpServer::stop() {
         server_thread_.join();
     }
 
-#if defined(_WIN32)
     WSACleanup();
-#endif
+    log_server_line("[HttpServer] Server stopped.");
 }
 
 void HttpServer::wait() {
@@ -267,11 +292,7 @@ void HttpServer::listen_loop() {
 
     while (is_running_) {
         sockaddr_in client_addr;
-#if defined(_WIN32)
         int client_len = sizeof(client_addr);
-#else
-        socklen_t client_len = sizeof(client_addr);
-#endif
         SOCKET client_sock = accept(server_fd, reinterpret_cast<sockaddr*>(&client_addr), &client_len);
 
         if (client_sock == INVALID_SOCKET) {
@@ -377,6 +398,7 @@ void HttpServer::handle_client(uintptr_t client_socket) {
                 resp.status_code = 403;
                 resp.content_type = "application/json";
                 resp.body = "{\"error\":\"Forbidden: Invalid Host header: " + escape_json(h) + "\",\"status\":403}";
+                log_server_line("[HttpServer] " + req.method + " " + req.path + " -> 403 (Invalid Host: " + h + ")");
                 send_resp(resp);
                 return;
             }
@@ -393,6 +415,7 @@ void HttpServer::handle_client(uintptr_t client_socket) {
                     resp.status_code = 403;
                     resp.content_type = "application/json";
                     resp.body = "{\"error\":\"Forbidden: Origin rejected: " + escape_json(orig) + "\",\"status\":403}";
+                    log_server_line("[HttpServer] " + req.method + " " + req.path + " -> 403 (Origin rejected: " + orig + ")");
                     send_resp(resp);
                     return;
                 }
@@ -405,7 +428,7 @@ void HttpServer::handle_client(uintptr_t client_socket) {
             resp.status_code = 413;
             resp.content_type = "application/json";
             resp.body = "{\"error\":\"Payload exceeds 50MB file size limit.\",\"status\":413}";
-            std::cout << "[HttpServer] " << req.method << " " << req.path << " -> 413 (Payload Too Large)\n";
+            log_server_line("[HttpServer] " + req.method + " " + req.path + " -> 413 (Payload Too Large)");
             send_resp(resp);
             return;
         }
@@ -426,7 +449,7 @@ void HttpServer::handle_client(uintptr_t client_socket) {
 
         // Route request safely
         HttpResponse resp = route_request(req);
-        std::cout << "[HttpServer] " << req.method << " " << req.path << " -> " << resp.status_code << " (" << resp.body.size() << " bytes)\n";
+        log_server_line("[HttpServer] " + req.method + " " + req.path + " -> " + std::to_string(resp.status_code) + " (" + std::to_string(resp.body.size()) + " bytes)");
         send_resp(resp);
 
     } catch (const std::exception& e) {
@@ -434,14 +457,14 @@ void HttpServer::handle_client(uintptr_t client_socket) {
         err_resp.status_code = 400;
         err_resp.content_type = "application/json";
         err_resp.body = "{\"error\":\"" + escape_json(e.what()) + "\",\"status\":400}";
-        std::cerr << "[HttpServer Exception] " << e.what() << "\n";
+        log_server_line(std::string("[HttpServer Exception] ") + e.what());
         send_resp(err_resp);
     } catch (...) {
         HttpResponse err_resp;
         err_resp.status_code = 500;
         err_resp.content_type = "application/json";
         err_resp.body = "{\"error\":\"Internal server error occurred.\",\"status\":500}";
-        std::cerr << "[HttpServer Unknown Exception]\n";
+        log_server_line("[HttpServer Unknown Exception]");
         send_resp(err_resp);
     }
 }
@@ -471,7 +494,8 @@ HttpResponse HttpServer::route_request(const HttpRequest& req) {
            << "\"version\":\"1.0.0\","
            << "\"cpu_model\":\"" << MulticoreBenchmarker::get_cpu_brand_string() << "\","
            << "\"hardware_concurrency\":" << MulticoreBenchmarker::get_hardware_concurrency() << ","
-           << "\"active_port\":" << actual_port_
+           << "\"active_port\":" << actual_port_ << ","
+           << "\"launch_to_ready_ms\":" << g_launch_to_ready_ms
            << "}";
         resp.body = ss.str();
         return resp;

@@ -1,5 +1,6 @@
 # Build artifacts
 build/
+logs/
 bin/
 *.obj
 *.o
