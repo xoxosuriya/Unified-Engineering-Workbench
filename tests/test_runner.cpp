@@ -1,15 +1,21 @@
+#include <winsock2.h>
+#include <ws2tcpip.h>
 #include <iostream>
 #include <cassert>
 #include <cmath>
 #include <string>
 #include <vector>
+#include <thread>
+#include <chrono>
+#include <cstring>
+#include <atomic>
 #include "stl_parser.hpp"
 #include "ansys_parser.hpp"
 #include "thermal_fea_1d.hpp"
 #include "multicore_bench.hpp"
 #include "embedded_hardware.hpp"
 #include "backprop_engine.hpp"
-#include <atomic>
+#include "http_server.hpp"
 
 using namespace workbench;
 
@@ -410,6 +416,258 @@ void test_parser_edge_cases() {
 }
 
 // -------------------------------------------------------------
+// Helper HTTP clients for test suite
+// -------------------------------------------------------------
+static std::string http_get_sync(const std::string& host, int port, const std::string& path) {
+    SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (s == INVALID_SOCKET) return "";
+    sockaddr_in addr;
+    std::memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(static_cast<uint16_t>(port));
+    addr.sin_addr.s_addr = inet_addr(host.c_str());
+    if (connect(s, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) != 0) {
+        closesocket(s);
+        return "";
+    }
+    std::string req = "GET " + path + " HTTP/1.1\r\nHost: " + host + ":" + std::to_string(port) + "\r\nConnection: close\r\n\r\n";
+    send(s, req.data(), static_cast<int>(req.size()), 0);
+    std::string resp;
+    char buf[4096];
+    int r = 0;
+    while ((r = recv(s, buf, sizeof(buf), 0)) > 0) {
+        resp.append(buf, r);
+    }
+    closesocket(s);
+    return resp;
+}
+
+static std::string http_post_sync(const std::string& host, int port, const std::string& path, const std::string& body, const std::string& extra_headers = "") {
+    SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (s == INVALID_SOCKET) return "";
+    sockaddr_in addr;
+    std::memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(static_cast<uint16_t>(port));
+    addr.sin_addr.s_addr = inet_addr(host.c_str());
+    if (connect(s, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) != 0) {
+        closesocket(s);
+        return "";
+    }
+    std::string req = "POST " + path + " HTTP/1.1\r\nHost: " + host + ":" + std::to_string(port) + "\r\n" +
+                      "Origin: http://127.0.0.1:" + std::to_string(port) + "\r\n" +
+                      "Content-Length: " + std::to_string(body.size()) + "\r\n" +
+                      extra_headers +
+                      "Connection: close\r\n\r\n" + body;
+    send(s, req.data(), static_cast<int>(req.size()), 0);
+    std::string resp;
+    char buf[4096];
+    int r = 0;
+    while ((r = recv(s, buf, sizeof(buf), 0)) > 0) {
+        resp.append(buf, r);
+    }
+    closesocket(s);
+    return resp;
+}
+
+static bool contains_inf_or_nan_token(const std::string& str) {
+    if (str.find(": nan") != std::string::npos || str.find(":nan") != std::string::npos ||
+        str.find(": inf") != std::string::npos || str.find(":inf") != std::string::npos ||
+        str.find(":-inf") != std::string::npos || str.find(": -inf") != std::string::npos ||
+        str.find("[nan") != std::string::npos || str.find(",nan") != std::string::npos ||
+        str.find("[inf") != std::string::npos || str.find(",inf") != std::string::npos ||
+        str.find("Infinity") != std::string::npos || str.find("NaN") != std::string::npos) {
+        return true;
+    }
+    return false;
+}
+
+// -------------------------------------------------------------
+// New Item 5 Tests: Parameter range rejection, 409 guard, cancel, JSON sanitizer, dup/1e300
+// -------------------------------------------------------------
+void test_parameter_range_rejection() {
+    int test_port = 9881;
+    HttpServer server("127.0.0.1", test_port, "src/frontend");
+    TEST_ASSERT(server.start(), "Server must start for parameter rejection tests");
+    int port = server.get_actual_port();
+
+    // 1. FEA numeric range rejection
+    // L range: (0, 1000] -> L <= 0 or L > 1000 rejected
+    std::string r1 = http_get_sync("127.0.0.1", port, "/api/fea/solve?L=-5&A=0.01&k=50&q=1000&T0=20&TL=100&N=10");
+    TEST_ASSERT(r1.find("400 Bad Request") != std::string::npos, "L=-5 must return 400");
+    std::string r2 = http_get_sync("127.0.0.1", port, "/api/fea/solve?L=1500&A=0.01&k=50&q=1000&T0=20&TL=100&N=10");
+    TEST_ASSERT(r2.find("400 Bad Request") != std::string::npos, "L=1500 must return 400");
+
+    // A range: (0, 100] -> A <= 0 or A > 100 rejected
+    std::string r3 = http_get_sync("127.0.0.1", port, "/api/fea/solve?L=1&A=0&k=50&q=1000&T0=20&TL=100&N=10");
+    TEST_ASSERT(r3.find("400 Bad Request") != std::string::npos, "A=0 must return 400");
+    std::string r4 = http_get_sync("127.0.0.1", port, "/api/fea/solve?L=1&A=150&k=50&q=1000&T0=20&TL=100&N=10");
+    TEST_ASSERT(r4.find("400 Bad Request") != std::string::npos, "A=150 must return 400");
+
+    // k range: (0, 100000] -> k <= 0 or k > 100000 rejected
+    std::string r5 = http_get_sync("127.0.0.1", port, "/api/fea/solve?L=1&A=0.01&k=0&q=1000&T0=20&TL=100&N=10");
+    TEST_ASSERT(r5.find("400 Bad Request") != std::string::npos, "k=0 must return 400");
+    std::string r6 = http_get_sync("127.0.0.1", port, "/api/fea/solve?L=1&A=0.01&k=150000&q=1000&T0=20&TL=100&N=10");
+    TEST_ASSERT(r6.find("400 Bad Request") != std::string::npos, "k=150000 must return 400");
+
+    // T0, TL range: [-273.15, 1e6] -> T < -273.15 or T > 1e6 rejected
+    std::string r7 = http_get_sync("127.0.0.1", port, "/api/fea/solve?L=1&A=0.01&k=50&q=1000&T0=-300&TL=100&N=10");
+    TEST_ASSERT(r7.find("400 Bad Request") != std::string::npos, "T0=-300 must return 400");
+    std::string r8 = http_get_sync("127.0.0.1", port, "/api/fea/solve?L=1&A=0.01&k=50&q=1000&T0=20&TL=2000000&N=10");
+    TEST_ASSERT(r8.find("400 Bad Request") != std::string::npos, "TL=2000000 must return 400");
+
+    // N range: [1, 100000] -> N=0 or N > 100000 rejected
+    std::string r9 = http_get_sync("127.0.0.1", port, "/api/fea/solve?L=1&A=0.01&k=50&q=1000&T0=20&TL=100&N=0");
+    TEST_ASSERT(r9.find("400 Bad Request") != std::string::npos, "N=0 must return 400");
+    std::string r10 = http_get_sync("127.0.0.1", port, "/api/fea/solve?L=1&A=0.01&k=50&q=1000&T0=20&TL=100&N=100001");
+    TEST_ASSERT(r10.find("400 Bad Request") != std::string::npos, "N=100001 must return 400");
+
+    // Convergence study parameter rejection
+    std::string r_conv = http_get_sync("127.0.0.1", port, "/api/fea/convergence?L=-1&A=0.01&k=50&q=1000&T0=20&TL=100");
+    TEST_ASSERT(r_conv.find("400 Bad Request") != std::string::npos, "Convergence with L=-1 must return 400");
+
+    // 2. Performance benchmark numeric range rejection
+    // cases: 1..200000
+    std::string r_c0 = http_get_sync("127.0.0.1", port, "/api/performance/run?cases=0&mesh=10&seed=1");
+    TEST_ASSERT(r_c0.find("400 Bad Request") != std::string::npos, "cases=0 must return 400");
+    std::string r_c_high = http_get_sync("127.0.0.1", port, "/api/performance/run?cases=200001&mesh=10&seed=1");
+    TEST_ASSERT(r_c_high.find("400 Bad Request") != std::string::npos, "cases=200001 must return 400");
+
+    // mesh: 1..5000
+    std::string r_m0 = http_get_sync("127.0.0.1", port, "/api/performance/run?cases=10&mesh=0&seed=1");
+    TEST_ASSERT(r_m0.find("400 Bad Request") != std::string::npos, "mesh=0 must return 400");
+    std::string r_m_high = http_get_sync("127.0.0.1", port, "/api/performance/run?cases=10&mesh=5001&seed=1");
+    TEST_ASSERT(r_m_high.find("400 Bad Request") != std::string::npos, "mesh=5001 must return 400");
+
+    // non-numeric parameters
+    std::string r_non_num = http_get_sync("127.0.0.1", port, "/api/performance/run?cases=abc&mesh=10&seed=1");
+    TEST_ASSERT(r_non_num.find("400 Bad Request") != std::string::npos, "cases=abc must return 400");
+
+    server.stop();
+}
+
+void test_benchmark_concurrency_guard_409() {
+    int test_port = 9882;
+    HttpServer server("127.0.0.1", test_port, "src/frontend");
+    TEST_ASSERT(server.start(), "Server must start for concurrency test");
+    int port = server.get_actual_port();
+
+    std::atomic<bool> t1_done{false};
+    std::thread t1([&]() {
+        http_get_sync("127.0.0.1", port, "/api/performance/run?cases=100000&mesh=400&seed=42");
+        t1_done = true;
+    });
+
+    // Wait until benchmark enters running state
+    for (int i = 0; i < 50; ++i) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        std::string prog = http_get_sync("127.0.0.1", port, "/api/performance/progress");
+        if (prog.find("\"running\":true") != std::string::npos) break;
+    }
+
+    // Attempt second concurrent request
+    std::string resp2 = http_get_sync("127.0.0.1", port, "/api/performance/run?cases=10&mesh=10&seed=1");
+    TEST_ASSERT(resp2.find("409 Conflict") != std::string::npos, "Concurrent benchmark must return 409 Conflict");
+    TEST_ASSERT(resp2.find("A benchmark is already running") != std::string::npos, "409 body must state already running");
+
+    // Cancel running benchmark
+    std::string cancel_resp = http_post_sync("127.0.0.1", port, "/api/performance/cancel", "");
+    TEST_ASSERT(cancel_resp.find("\"success\":true") != std::string::npos, "Cancel must return success: true");
+
+    t1.join();
+    server.stop();
+}
+
+void test_benchmark_cancel_mid_run() {
+    BenchmarkConfig cfg;
+    cfg.case_count = 50000;
+    cfg.mesh_size_N = 200;
+    cfg.repetitions = 5;
+    std::atomic<bool> cancel_flag{false};
+
+    std::thread cancel_thread([&]() {
+        for (int i = 0; i < 500; ++i) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            auto prog = MulticoreBenchmarker::get_progress();
+            if (prog.running && prog.step > 0) {
+                break;
+            }
+        }
+        cancel_flag = true;
+    });
+
+    BenchmarkSummary res = MulticoreBenchmarker::run_benchmark(cfg, &cancel_flag);
+    cancel_thread.join();
+
+    TEST_ASSERT(res.was_cancelled, "Benchmark must indicate was_cancelled == true");
+    auto prog = MulticoreBenchmarker::get_progress();
+    TEST_ASSERT(!prog.running, "Progress running flag must be false after completion");
+}
+
+void test_json_sanitizer() {
+    // 1. STL parser on failed parse
+    StlParseResult stl_fail = StlParser::parse_string("corrupted non-stl content");
+    std::string stl_j = stl_fail.to_json();
+    TEST_ASSERT(stl_j.find("\"surface_area\":null") != std::string::npos, "Failed STL must emit surface_area: null");
+    TEST_ASSERT(stl_j.find("\"bounds\":null") != std::string::npos, "Failed STL must emit bounds: null");
+    TEST_ASSERT(!contains_inf_or_nan_token(stl_j), "STL JSON must never contain nan or inf");
+    TEST_ASSERT(stl_j.find("1e30") == std::string::npos && stl_j.find("1e+30") == std::string::npos, "STL JSON must never contain 1e30 sentinels");
+
+    // 2. ANSYS parser on failed parse
+    AnsysParseResult ans_fail = AnsysParser::parse_string("invalid non-csv content");
+    std::string ans_j = ans_fail.to_json();
+    TEST_ASSERT(ans_j.find("\"min_temp_C\":null") != std::string::npos, "Failed ANSYS must emit min_temp_C: null");
+    TEST_ASSERT(ans_j.find("\"max_temp_C\":null") != std::string::npos, "Failed ANSYS must emit max_temp_C: null");
+    TEST_ASSERT(ans_j.find("\"avg_temp_C\":null") != std::string::npos, "Failed ANSYS must emit avg_temp_C: null");
+    TEST_ASSERT(ans_j.find("\"bounds\":null") != std::string::npos, "Failed ANSYS must emit bounds: null");
+    TEST_ASSERT(!contains_inf_or_nan_token(ans_j), "ANSYS JSON must never contain nan or inf");
+    TEST_ASSERT(ans_j.find("1e30") == std::string::npos && ans_j.find("1e+30") == std::string::npos, "ANSYS JSON must never contain 1e30 sentinels");
+
+    // 3. BenchmarkSummary with uncalculated/sentinel max_absolute_temp_diff_C
+    BenchmarkSummary b_sum;
+    b_sum.max_absolute_temp_diff_C = 1e30;
+    std::string b_j = b_sum.to_json();
+    TEST_ASSERT(b_j.find("\"max_absolute_temp_diff_C\":null") != std::string::npos, "Sentinel diff must emit null");
+    TEST_ASSERT(!contains_inf_or_nan_token(b_j), "Benchmark JSON must never contain nan or inf");
+}
+
+void test_duplicate_id_and_1e300_rejection() {
+    // 1. Duplicate node ID in ANSYS CSV
+    std::string dup_csv =
+        "node_id,x_m,y_m,z_m,temperature_C\n"
+        "201,0.0,0.0,0.0,50.0\n"
+        "202,0.1,0.0,0.0,60.0\n"
+        "201,0.2,0.0,0.0,70.0\n";
+    AnsysParseResult r1 = AnsysParser::parse_string(dup_csv);
+    TEST_ASSERT(!r1.success, "Duplicate node ID must be rejected");
+    TEST_ASSERT(r1.error_message.find("Duplicate node_id 201") != std::string::npos, "Error message must report duplicate node_id 201");
+
+    // 2. Temperature of 1e300 C
+    std::string t1e300_csv =
+        "node_id,x_m,y_m,z_m,temperature_C\n"
+        "1,0.0,0.0,0.0,1e300\n";
+    AnsysParseResult r2 = AnsysParser::parse_string(t1e300_csv);
+    TEST_ASSERT(!r2.success, "1e300 C temperature must be rejected");
+    TEST_ASSERT(r2.error_message.find("5000 C") != std::string::npos || r2.error_message.find("exceeds") != std::string::npos,
+                "Error message must report temperature range violation");
+
+    // 3. Temperature exceeding 5000 C bound (|T| > 5000)
+    std::string t_over =
+        "node_id,x_m,y_m,z_m,temperature_C\n"
+        "1,0.0,0.0,0.0,5000.5\n";
+    AnsysParseResult r3 = AnsysParser::parse_string(t_over);
+    TEST_ASSERT(!r3.success, "5000.5 C must be rejected (|T| > 5000 C)");
+    TEST_ASSERT(r3.error_message.find("5000 C") != std::string::npos, "Error message must report 5000 C violation");
+
+    // 4. Negative temperature below absolute zero
+    std::string t_abs =
+        "node_id,x_m,y_m,z_m,temperature_C\n"
+        "1,0.0,0.0,0.0,-280.0\n";
+    AnsysParseResult r4 = AnsysParser::parse_string(t_abs);
+    TEST_ASSERT(!r4.success, "Temperature below absolute zero (-280 C) must be rejected");
+}
+
+// -------------------------------------------------------------
 // Test Runner Main
 // -------------------------------------------------------------
 int main() {
@@ -445,6 +703,13 @@ int main() {
 
     // Task F Tests
     RUN_TEST(test_backpropagation_gradient_check);
+
+    // Item 5 Extended Tests
+    RUN_TEST(test_parameter_range_rejection);
+    RUN_TEST(test_benchmark_concurrency_guard_409);
+    RUN_TEST(test_benchmark_cancel_mid_run);
+    RUN_TEST(test_json_sanitizer);
+    RUN_TEST(test_duplicate_id_and_1e300_rejection);
 
     std::cout << "=================================================================\n";
     std::cout << " Test Summary: " << g_tests_passed << " Passed, " << g_tests_failed << " Failed\n";
