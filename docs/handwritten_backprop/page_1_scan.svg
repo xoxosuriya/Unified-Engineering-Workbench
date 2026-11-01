@@ -16,7 +16,7 @@
 
   <!-- Title Header -->
   <text x="425" y="65" class="heading" font-size="20" text-anchor="middle">Task F: Simple Handwritten Backpropagation</text>
-  <text x="425" y="88" font-family="sans-serif" font-size="12" fill="#64748b" text-anchor="middle">Pass Science Works | R&amp;D Internship Assessment | Page 1 of 2</text>
+  <text x="425" y="88" font-family="sans-serif" font-size="12" fill="#64748b" text-anchor="middle">Pass Science Works | Candidate ID: RA2311047010144 | Page 1 of 2</text>
 
   <!-- Problem Setup Box -->
   <rect x="110" y="115" width="670" height="75" class="box"/>

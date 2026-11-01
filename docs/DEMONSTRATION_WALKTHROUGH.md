@@ -1,5 +1,6 @@
 # Demonstration Video & Timestamped Walkthrough Log
 
+**Candidate ID:** RA2311047010144  
 **Artifact Reference:** [`workbench_demo.webp`](./workbench_demo.webp) (Bundled 14.9 MB recorded session video)  
 **Platform Tested:** Windows 11 x64  
 **Date & Time:** 2026-11-01 06:10 UTC  

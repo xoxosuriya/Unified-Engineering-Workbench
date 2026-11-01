@@ -1,5 +1,6 @@
 # Unified Engineering Workbench (UEW)
 **PASS Science Works — R&D Internship Assessment 2026–2027**  
+**Candidate ID:** RA2311047010144  
 *Common Internship Assignment | Target Platform: Windows 11 x64*
 
 ---
@@ -7,7 +8,7 @@
 ## 1. Quick Start & One-Click Execution
 
 ### Standalone Zero-Prerequisite Execution (Evaluator Gate)
-1. **Extract Archive:** Extract `CandidateID_Workbench.zip` into any folder on Windows 11 x64.
+1. **Extract Archive:** Extract `RA2311047010144_Workbench.zip` into any folder on Windows 11 x64.
 2. **Double-Click `Launch.exe`:** Double-click [`Launch.exe`](./Launch.exe) in the extracted root directory.
    - **No terminal, PowerShell, administrator privileges, package installations (Node/Python), or first-run builds are required.**
    - The native C++ server binds to `127.0.0.1:8080` (or the next available port) and opens your default browser immediately to the workbench.
