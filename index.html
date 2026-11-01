@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PASS Science Works – Unified Engineering Workbench</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- App Header -->
+  <header class="app-header">
+    <div class="brand-section">
+      <div class="brand-logo">UEW</div>
+      <div>
+        <h1 class="brand-title">Unified Engineering Workbench</h1>
+        <div class="brand-subtitle">Pass Science Works | R&D Internship 2026-2027</div>
+      </div>
+    </div>
+    <div class="header-status-group">
+      <div id="header-cpu-info" class="header-info-chip">Detecting CPU...</div>
+      <div id="header-status-badge" class="status-badge">
+        <span class="status-dot"></span> C++17 ONLINE
+      </div>
+      <button id="shutdown-server-btn" class="btn btn-secondary" style="padding:5px 12px; font-size:11px;">
+        Shutdown
+      </button>
+    </div>
+  </header>
+
+  <!-- Navigation Tabs -->
+  <nav class="nav-tabs">
+    <button class="nav-tab active" data-view="geometry">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      Geometry (STL)
+    </button>
+    <button class="nav-tab" data-view="ansys">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      ANSYS Thermal Data
+    </button>
+    <button class="nav-tab" data-view="thermal">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>
+      Thermal FEA (1D Rod)
+    </button>
+    <button class="nav-tab" data-view="performance">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      Multicore Performance
+    </button>
+    <button class="nav-tab" data-view="hardware">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>
+      Embedded Hardware (HIL)
+    </button>
+    <button class="nav-tab" data-view="backprop">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Backpropagation & Math
+    </button>
+  </nav>
+
+  <!-- Main Views Container -->
+  <main class="main-content">
+
+    <!-- VIEW 1: GEOMETRY (STL) -->
+    <section id="view-geometry" class="view-panel active">
+      <div class="grid-split">
+        <!-- Controls & Metrics Sidebar -->
+        <div style="display:flex; flex-direction:column; gap:16px;">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">ASCII STL Import</span>
+              <span class="pill pill-cyan">C++ Parser</span>
+            </div>
+
+            <!-- Error Banner -->
+            <div id="stl-error-banner" style="display:none; background:rgba(244,63,94,0.15); border:1px solid #f43f5e; border-radius:6px; padding:10px; margin-bottom:12px; font-size:12px; color:#fb7185;">
+              <strong>Rejection Diagnostic:</strong> <span id="stl-error-msg"></span>
+            </div>
+
+            <div id="stl-dropzone" class="dropzone">
+              <div class="dropzone-icon">📁</div>
+              <div class="dropzone-title">Drop ASCII STL file here</div>
+              <div class="dropzone-desc">or click to browse from disk (Tested to 50 MB)</div>
+              <input type="file" id="stl-file-input" accept=".stl" style="display:none;">
+            </div>
+
+            <div style="margin-top:14px; display:flex; gap:8px;">
+              <button id="load-sample-stl-btn" class="btn btn-primary" style="flex:1;">
+                Load Sample Bracket
+              </button>
+            </div>
+          </div>
+
+          <!-- Geometry Metrics Card -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Geometry Diagnostics</span>
+              <span class="card-subtitle">Validated Units: Meters [m]</span>
+            </div>
+            <div class="metrics-row">
+              <div class="metric-card">
+                <div class="metric-label">Solid Name</div>
+                <div id="stl-metric-solid" class="metric-val" style="font-size:14px;">—</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Facet Count</div>
+                <div id="stl-metric-facets" class="metric-val">0</div>
+              </div>
+            </div>
+            <div class="metrics-row">
+              <div class="metric-card">
+                <div class="metric-label">Surface Area</div>
+                <div id="stl-metric-area" class="metric-val">0 cm²</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Bounding Box</div>
+                <div id="stl-metric-bbox" class="metric-val" style="font-size:12px;">0 × 0 × 0 mm</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3D Viewport Box -->
+        <div class="viewport-3d-box">
+          <div class="viewport-overlay-controls">
+            <button id="stl-fit-btn" class="overlay-btn">Fit to View</button>
+            <button id="stl-wireframe-btn" class="overlay-btn">Toggle Wireframe</button>
+          </div>
+          <div id="stl-canvas-container" style="width:100%; height:100%;"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 2: ANSYS THERMAL DATA -->
+    <section id="view-ansys" class="view-panel">
+      <div class="grid-split">
+        <div style="display:flex; flex-direction:column; gap:16px;">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">ANSYS Nodal CSV Import</span>
+              <span class="pill pill-warning">SYNTHETIC MOCK</span>
+            </div>
+
+            <div id="ansys-error-banner" style="display:none; background:rgba(244,63,94,0.15); border:1px solid #f43f5e; border-radius:6px; padding:10px; margin-bottom:12px; font-size:12px; color:#fb7185;">
+              <strong>Rejection Diagnostic:</strong> <span id="ansys-error-msg"></span>
+            </div>
+
+            <div id="ansys-dropzone" class="dropzone">
+              <div class="dropzone-icon">📊</div>
+              <div class="dropzone-title">Drop ANSYS Nodal CSV here</div>
+              <div class="dropzone-desc">node_id,x_m,y_m,z_m,temperature_C</div>
+              <input type="file" id="ansys-file-input" accept=".csv" style="display:none;">
+            </div>
+
+            <div style="margin-top:14px; display:flex; gap:8px;">
+              <button id="load-sample-ansys-btn" class="btn btn-primary" style="flex:1;">
+                Load Synthetic ANSYS Dataset
+              </button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Thermal Field Metrics</span>
+              <span class="card-subtitle">Units: °C</span>
+            </div>
+            <div class="metrics-row">
+              <div class="metric-card">
+                <div class="metric-label">Total Nodes</div>
+                <div id="ansys-metric-nodes" class="metric-val">0</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Min Temp</div>
+                <div id="ansys-metric-min-temp" class="metric-val" style="color:#60a5fa;">—</div>
+              </div>
+            </div>
+            <div class="metrics-row">
+              <div class="metric-card">
+                <div class="metric-label">Max Temp</div>
+                <div id="ansys-metric-max-temp" class="metric-val" style="color:#f87171;">—</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Avg Temp</div>
+                <div id="ansys-metric-avg-temp" class="metric-val" style="color:#34d399;">—</div>
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-top:10px;">
+              <label class="form-label">Point Size Adjustment</label>
+              <input type="range" id="ansys-point-size" min="0.001" max="0.01" step="0.0005" value="0.0035" style="width:100%;">
+            </div>
+          </div>
+        </div>
+
+        <!-- 3D Point Cloud Container -->
+        <div class="viewport-3d-box">
+          <div class="viewport-overlay-controls">
+            <button id="ansys-fit-btn" class="overlay-btn">Fit Point Cloud</button>
+          </div>
+
+          <!-- Tooltip for node inspection -->
+          <div id="ansys-node-tooltip" class="inspection-tooltip"></div>
+
+          <!-- Colormap Legend -->
+          <div class="colormap-legend">
+            <div class="legend-labels">
+              <span id="ansys-legend-min">25.0 °C</span>
+              <span style="color:#fff; font-weight:700;">Temperature [°C]</span>
+              <span id="ansys-legend-max">103.9 °C</span>
+            </div>
+            <div class="legend-bar"></div>
+            <div style="font-size:10px; color:var(--text-muted); text-align:center;">Hover node for full coordinates & value</div>
+          </div>
+
+          <div id="ansys-canvas-container" style="width:100%; height:100%;"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 3: THERMAL FEA -->
+    <section id="view-thermal" class="view-panel">
+      <div class="grid-split">
+        <!-- Input Parameters Card -->
+        <div style="display:flex; flex-direction:column; gap:16px;">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">1D Rod Problem Parameters</span>
+              <span class="pill pill-cyan">Steady-State</span>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Rod Length L [m]</label>
+              <input type="number" id="fea-param-L" class="form-input" value="1.0" step="0.1">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Cross-Sectional Area A [m²]</label>
+              <input type="number" id="fea-param-A" class="form-input" value="0.0001" step="0.00001">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Conductivity k [W/(m·K)]</label>
+              <input type="number" id="fea-param-k" class="form-input" value="10.0" step="1.0">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Volumetric Heat Generation q [W/m³]</label>
+              <input type="number" id="fea-param-q" class="form-input" value="10000.0" step="1000.0">
+            </div>
+
+            <div class="grid-cols-2">
+              <div class="form-group">
+                <label class="form-label">Left Temp T(0) [°C]</label>
+                <input type="number" id="fea-param-T0" class="form-input" value="100.0">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Right Temp T(L) [°C]</label>
+                <input type="number" id="fea-param-TL" class="form-input" value="20.0">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Element Count N (Uniform Mesh)</label>
+              <select id="fea-param-N" class="form-input">
+                <option value="10">N = 10 (h = 0.100 m)</option>
+                <option value="20">N = 20 (h = 0.050 m)</option>
+                <option value="40">N = 40 (h = 0.025 m)</option>
+                <option value="80">N = 80 (h = 0.0125 m)</option>
+              </select>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
+              <button id="fea-solve-btn" class="btn btn-primary">Solve Selected Mesh</button>
+              <button id="fea-run-convergence-btn" class="btn btn-secondary">Run Full Study (N=10,20,40,80)</button>
+              <button id="fea-export-csv-btn" class="btn btn-secondary">Export Results CSV</button>
+            </div>
+          </div>
+
+          <!-- Interdisciplinary Adoption Note -->
+          <div class="card" style="border-left:4px solid var(--accent-indigo);">
+            <div style="font-weight:700; color:#fff; font-size:13px; margin-bottom:6px;">
+              Interdisciplinary FEA Learning Insight
+            </div>
+            <p style="font-size:11px; color:var(--text-muted); line-height:1.5;">
+              <strong>Nodal Exactness vs Midpoint Convergence:</strong> In 1D linear FEA with constant <em>k</em> and uniform <em>q</em>, finite element nodal values are exact due to energy minimization. Error only manifests in the element interior, with the midpoint error scaling strictly as <em>q·h²/(8k)</em>. This demonstrates genuine <em>O(h²)</em> convergence without misleading 0-error evaluations.
+            </p>
+          </div>
+        </div>
+
+        <!-- Plots & Convergence Results -->
+        <div style="display:flex; flex-direction:column; gap:20px;">
+          <!-- Profile Chart -->
+          <div class="card" style="height:320px;">
+            <div class="card-header">
+              <span class="card-title">Temperature Distribution Profile: T(x)</span>
+              <span class="card-subtitle">T_exact(x) = 100 - 80x + 500x(1-x)</span>
+            </div>
+            <div style="width:100%; height:230px;">
+              <canvas id="fea-profile-chart"></canvas>
+            </div>
+          </div>
+
+          <!-- Convergence Chart & Table -->
+          <div class="grid-cols-2">
+            <div class="card" style="height:340px;">
+              <div class="card-header">
+                <span class="card-title">Midpoint Error vs Mesh Size</span>
+                <span class="pill pill-success">Quadratic O(h²)</span>
+              </div>
+              <div style="width:100%; height:250px;">
+                <canvas id="fea-convergence-chart"></canvas>
+              </div>
+            </div>
+
+            <div class="card" style="height:340px; overflow-y:auto;">
+              <div class="card-header">
+                <span class="card-title">Mesh Convergence Table</span>
+                <span class="card-subtitle">Midpoint Interpolation</span>
+              </div>
+              <div class="data-table-wrapper">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Mesh</th>
+                      <th>h [m]</th>
+                      <th>Measured Mid Error</th>
+                      <th>Theoretical q·h²/8k</th>
+                      <th>Nodal Err</th>
+                      <th>Ratio</th>
+                      <th>Rate p</th>
+                    </tr>
+                  </thead>
+                  <tbody id="fea-convergence-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 4: MULTICORE PERFORMANCE -->
+    <section id="view-performance" class="view-panel">
+      <div class="grid-split">
+        <div style="display:flex; flex-direction:column; gap:16px;">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Parallel Workload Configuration</span>
+              <span class="pill pill-cyan">Bounded Worker Pool</span>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Batch Case Count (Solves)</label>
+              <input type="number" id="perf-param-cases" class="form-input" value="1000" step="250">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Mesh Size per Case N</label>
+              <input type="number" id="perf-param-mesh" class="form-input" value="100" step="20">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">PRNG Reproducible Seed</label>
+              <input type="number" id="perf-param-seed" class="form-input" value="42">
+            </div>
+
+            <div id="perf-progress-container" style="display:none;">
+              <div class="metric-label">Execution Progress</div>
+              <div class="progress-bar-container">
+                <div id="perf-progress-bar" class="progress-bar-fill"></div>
+              </div>
+            </div>
+
+            <div style="display:flex; gap:8px; margin-top:8px;">
+              <button id="perf-run-btn" class="btn btn-primary" style="flex:1;">Run Benchmark</button>
+              <button id="perf-cancel-btn" class="btn btn-danger" style="display:none;">Cancel</button>
+              <button id="perf-export-csv-btn" class="btn btn-secondary">Export CSV</button>
+            </div>
+          </div>
+
+          <!-- Hardware & Environment Card -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Host Benchmark Environment</span>
+            </div>
+            <div style="font-size:12px; display:flex; flex-direction:column; gap:8px;">
+              <div><strong style="color:var(--text-muted);">CPU:</strong> <span id="perf-cpu-model" style="color:#fff;">Detecting...</span></div>
+              <div><strong style="color:var(--text-muted);">Cores:</strong> <span id="perf-cores-logical" style="color:#38bdf8;">—</span></div>
+              <div><strong style="color:var(--text-muted);">Compiler:</strong> <span id="perf-compiler-flags" style="color:#a855f7;">—</span></div>
+              <div><strong style="color:var(--text-muted);">Launch-to-Ready:</strong> <span id="perf-launch-ready-time" style="color:#34d399;">—</span></div>
+              <div><strong style="color:var(--text-muted);">Warm-up Compute:</strong> <span id="perf-warmup-time" style="color:#f59e0b;">—</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:20px;">
+          <!-- Speedup Chart & Verification Banner -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Parallel Speedup T1 / Tp</span>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span class="card-subtitle">Numerical Agreement:</span>
+                <span id="perf-agreement-badge" class="pill pill-success">PASSED</span>
+                <span id="perf-max-diff-val" style="font-size:11px; color:#9ca3af;">0.00e+00 °C</span>
+              </div>
+            </div>
+            <div style="width:100%; height:260px;">
+              <canvas id="perf-speedup-chart"></canvas>
+            </div>
+          </div>
+
+          <!-- Repetitions Table -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">5 Measured Repetitions & Efficiency Metrics</span>
+              <span class="card-subtitle">Wall-Clock Compute Duration (ms)</span>
+            </div>
+            <div class="data-table-wrapper">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Workers</th>
+                    <th>Rep 1</th>
+                    <th>Rep 2</th>
+                    <th>Rep 3</th>
+                    <th>Rep 4</th>
+                    <th>Rep 5</th>
+                    <th>Median</th>
+                    <th>Speedup</th>
+                    <th>Efficiency</th>
+                  </tr>
+                </thead>
+                <tbody id="perf-repetitions-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 5: EMBEDDED HARDWARE -->
+    <section id="view-hardware" class="view-panel">
+      <div class="grid-split">
+        <div style="display:flex; flex-direction:column; gap:16px;">
+          <!-- Device Quick List -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Detected Embedded Hardware</span>
+              <span class="pill pill-cyan">3 Devices</span>
+            </div>
+            <div id="hw-device-quick-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+          </div>
+
+          <!-- Active Device Actions -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Adapter Link Control</span>
+              <span id="hw-conn-badge" class="pill pill-warning">DISCONNECTED</span>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <button id="hw-connect-btn" class="btn btn-primary">Connect Virtual Link</button>
+              <div class="metric-label" style="margin-top:8px;">Simulate Recoverable Hardware Faults</div>
+              <div style="display:flex; gap:8px;">
+                <button id="hw-inject-timeout-btn" class="btn btn-secondary" style="flex:1; font-size:11px;">Inject Timeout</button>
+                <button id="hw-inject-crc-btn" class="btn btn-secondary" style="flex:1; font-size:11px;">Inject CRC Fault</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recoverable Fault Card -->
+          <div id="hw-error-card" class="card" style="display:none; border:1px solid #f43f5e; background:rgba(244,63,94,0.1);">
+            <div style="font-weight:700; color:#fb7185; font-size:13px; margin-bottom:6px;">Hardware Fault Triggered!</div>
+            <div id="hw-error-msg" style="font-size:11px; color:#fecdd3; line-height:1.4; margin-bottom:12px;"></div>
+            <button id="hw-recover-btn" class="btn btn-success" style="width:100%;">Execute Interface Recovery</button>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:20px;">
+          <!-- Device Telemetry Panel -->
+          <div class="card">
+            <div class="card-header">
+              <div style="display:flex; gap:8px;">
+                <button class="overlay-btn hw-device-tab active" data-device-id="mcu_stm32h7">Microcontroller (STM32H7)</button>
+                <button class="overlay-btn hw-device-tab" data-device-id="fpga_artix7">FPGA (Artix-7)</button>
+                <button class="overlay-btn hw-device-tab" data-device-id="jtag_jlink">JTAG Probe (Segger J-Link)</button>
+              </div>
+              <span class="pill pill-cyan">LIVE 10 Hz STREAM</span>
+            </div>
+
+            <!-- MCU Panel -->
+            <div id="hw-panel-mcu">
+              <div class="metrics-row">
+                <div class="metric-card">
+                  <div class="metric-label">Core Temperature</div>
+                  <div id="mcu-temp-val" class="metric-val" style="color:#38bdf8;">38.5 °C</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label">VCC Rail</div>
+                  <div id="mcu-vcc-val" class="metric-val" style="color:#34d399;">3.310 V</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label">Uptime</div>
+                  <div id="mcu-uptime-val" class="metric-val">0.0 s</div>
+                </div>
+              </div>
+              <div class="metrics-row">
+                <div class="metric-card">
+                  <div class="metric-label">ADC Ch0 (12-bit)</div>
+                  <div id="mcu-adc-val" class="metric-val">2048 / 4095</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label">GPIO Output State</div>
+                  <div id="mcu-gpio-val" class="metric-val" style="color:#a855f7;">0x0A</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- FPGA Panel -->
+            <div id="hw-panel-fpga" style="display:none;">
+              <div class="metrics-row">
+                <div class="metric-card">
+                  <div class="metric-label">Die Temperature</div>
+                  <div id="fpga-temp-val" class="metric-val" style="color:#38bdf8;">44.2 °C</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label">Core VCCINT</div>
+                  <div id="fpga-vccint-val" class="metric-val" style="color:#34d399;">1.002 V</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label">Aux VCCAUX</div>
+                  <div id="fpga-vccaux-val" class="metric-val" style="color:#f59e0b;">1.801 V</div>
+                </div>
+              </div>
+              <div class="metrics-row">
+                <div class="metric-card">
+                  <div class="metric-label">LUT Utilization</div>
+                  <div id="fpga-lut-val" class="metric-val">42.6 %</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label">PLL Status</div>
+                  <div id="fpga-pll-val" class="metric-val" style="color:#34d399;">LOCKED</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- JTAG Panel -->
+            <div id="hw-panel-jtag" style="display:none;">
+              <div class="metrics-row">
+                <div class="metric-card">
+                  <div class="metric-label">Target Vref Sense</div>
+                  <div id="jtag-vref-val" class="metric-val" style="color:#34d399;">3.315 V</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label">TCK Frequency</div>
+                  <div id="jtag-tck-val" class="metric-val" style="color:#38bdf8;">12.0 MHz</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label">Detected TAP IDCODE</div>
+                  <div id="jtag-idcode-val" class="metric-val" style="font-size:15px; color:#f59e0b;">0x4BA00477</div>
+                </div>
+              </div>
+              <div class="metrics-row">
+                <div class="metric-card">
+                  <div class="metric-label">TAP Device Identification</div>
+                  <div id="jtag-device-name" class="metric-val" style="font-size:13px; color:#fff;">ARM CoreSight SW-DP</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label">Packets Transferred</div>
+                  <div id="jtag-packets-val" class="metric-val">0</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Architecture & Pin Table -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Inter-Board Electrical Architecture & Voltage Domains</span>
+              <span class="pill pill-cyan">Isolated Star Grounding</span>
+            </div>
+            <div class="data-table-wrapper">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Domain</th>
+                    <th>Nominal Voltage</th>
+                    <th>Bus / Connector</th>
+                    <th>Signal Ownership</th>
+                    <th>Level Shifting Topology</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Host PC (USB)</strong></td>
+                    <td>5.0V VBUS, 3.3V D+/D-</td>
+                    <td>USB 2.0 / Type-C</td>
+                    <td>Host Controller Master</td>
+                    <td>Optocoupler / Digital Isolator (ADuM1401)</td>
+                  </tr>
+                  <tr>
+                    <td><strong>MCU (STM32H7)</strong></td>
+                    <td>3.3V Digital, 1.2V Core</td>
+                    <td>20-Pin ARM Cortex</td>
+                    <td>Bidirectional UART CDC</td>
+                    <td>Direct 3.3V CMOS compatible</td>
+                  </tr>
+                  <tr>
+                    <td><strong>FPGA (Artix-7)</strong></td>
+                    <td>1.0V Int, 1.8V Aux, 3.3V IO</td>
+                    <td>6-Pin Digilent / SPI</td>
+                    <td>AXI-Lite Slave</td>
+                    <td>TI TXS0108E Auto-Direction Level Shifter</td>
+                  </tr>
+                  <tr>
+                    <td><strong>JTAG Debug Probe</strong></td>
+                    <td>1.2V - 5.0V Sense</td>
+                    <td>Standard 20-Pin Header</td>
+                    <td>TCK/TMS Master, TDO Slave</td>
+                    <td>Active Directional Buffers (SN74AVC4T245)</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div style="margin-top:14px; padding:12px; background:rgba(255,255,255,0.02); border-radius:6px; font-size:12px; color:var(--text-muted); line-height:1.5;">
+              <strong style="color:#fff;">Why JTAG is a Debug Interface, NOT a Generic Interchangeable Compute Board:</strong><br>
+              JTAG (IEEE Std 1149.1) is a synchronous, state-machine driven serial test and debug interface designed for Boundary-Scan Architecture and TAP controllers. The adapter acts as a synchronous bus master controlling dedicated signals (<code>TCK, TMS, TDI</code>) to drive the 16-state TAP finite state machine to access internal scan chains, On-Chip Emulation (CoreSight/ICE), and instruction registers. It does not execute application workloads, does not host an operating system, and cannot be treated as an interchangeable compute board on an application communication bus.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 6: BACKPROPAGATION -->
+    <section id="view-backprop" class="view-panel">
+      <div class="grid-split">
+        <div style="display:flex; flex-direction:column; gap:16px;">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Mathematical Problem Statement</span>
+              <span class="pill pill-cyan">x = 1, y = 2</span>
+            </div>
+            <div style="font-size:12px; line-height:1.6; color:var(--text-muted);">
+              <div><strong style="color:#fff;">Hidden Activation:</strong> <code>h = tanh(w·x + b)</code></div>
+              <div><strong style="color:#fff;">Prediction:</strong> <code>y_hat = v·h + c</code></div>
+              <div><strong style="color:#fff;">Loss Function:</strong> <code>J = 0.5·(y_hat - y)²</code></div>
+              <div style="margin-top:6px;"><strong style="color:#fff;">Initial Weights:</strong> <code>w = 0.5, b = 0.0, v = 1.0, c = 0.0</code></div>
+              <div><strong style="color:#fff;">Learning Rate:</strong> <code>η = 0.1</code></div>
+            </div>
+
+            <div style="margin-top:14px; display:flex; gap:8px;">
+              <button id="bp-recalculate-btn" class="btn btn-primary" style="flex:1;">Recalculate Steps</button>
+              <button id="bp-export-csv-btn" class="btn btn-secondary">Export CSV</button>
+            </div>
+          </div>
+
+          <!-- Step 0 Forward & Gradients Card -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Initial Forward Pass (Step 0)</span>
+            </div>
+            <div class="metrics-row">
+              <div class="metric-card">
+                <div class="metric-label">Linear z = wx + b</div>
+                <div id="bp-val-z" class="metric-val" style="color:#38bdf8;">0.500000</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Hidden h = tanh(z)</div>
+                <div id="bp-val-h" class="metric-val" style="color:#a855f7;">0.462117</div>
+              </div>
+            </div>
+            <div class="metrics-row">
+              <div class="metric-card">
+                <div class="metric-label">Output y_hat</div>
+                <div id="bp-val-yhat" class="metric-val" style="color:#34d399;">0.462117</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Initial Loss J</div>
+                <div id="bp-val-loss" class="metric-val" style="color:#fb7185;">1.182542</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Parameter Update Summary -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Simultaneous Update Step 1 (η = 0.1)</span>
+            </div>
+            <div style="font-size:12px; line-height:1.6;">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Parameter</th>
+                    <th>Analytical Gradient ∂J/∂θ</th>
+                    <th>Updated Weight θ_new</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>w</strong></td>
+                    <td id="bp-grad-w" style="color:#fb7185;">-1.209465</td>
+                    <td id="bp-upd-w" style="color:#34d399;">0.620946</td>
+                  </tr>
+                  <tr>
+                    <td><strong>b</strong></td>
+                    <td id="bp-grad-b" style="color:#fb7185;">-1.209465</td>
+                    <td id="bp-upd-b" style="color:#34d399;">0.120946</td>
+                  </tr>
+                  <tr>
+                    <td><strong>v</strong></td>
+                    <td id="bp-grad-v" style="color:#fb7185;">-0.710682</td>
+                    <td id="bp-upd-v" style="color:#34d399;">1.071068</td>
+                  </tr>
+                  <tr>
+                    <td><strong>c</strong></td>
+                    <td id="bp-grad-c" style="color:#fb7185;">-1.537883</td>
+                    <td id="bp-upd-c" style="color:#34d399;">0.153788</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:20px;">
+          <!-- Finite Difference Validation Table -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Central Finite Difference Verification (ε = 10⁻⁶)</span>
+              <span class="pill pill-success">Tolerance ≤ 1e-5</span>
+            </div>
+            <div class="data-table-wrapper">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Parameter</th>
+                    <th>Analytical Gradient</th>
+                    <th>Numerical [J(θ+ε) - J(θ-ε)] / (2ε)</th>
+                    <th>Absolute Error</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="bp-checks-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- 100-Step Loss Convergence Chart -->
+          <div class="card" style="height:350px;">
+            <div class="card-header">
+              <span class="card-title">Training Loss & Output Progression over 100 Steps</span>
+              <span class="card-subtitle">Monotonic Descent towards y = 2.0</span>
+            </div>
+            <div style="width:100%; height:260px;">
+              <canvas id="bp-loss-chart"></canvas>
+            </div>
+          </div>
+
+          <!-- Explanation of Gradient Direction -->
+          <div class="card" style="border-left:4px solid var(--accent-emerald);">
+            <div style="font-weight:700; color:#fff; font-size:13px; margin-bottom:6px;">
+              Mathematical Defense: Gradient Direction & Parameter Dynamics
+            </div>
+            <p style="font-size:12px; color:var(--text-muted); line-height:1.5;">
+              At initialization, the model predicts <em>y_hat = 0.4621</em>, severely underpredicting the target <em>y = 2.0</em> (error <em>e = -1.5379</em>). Because the loss gradient <em>∇J</em> points in the direction of steepest increase in loss, each partial derivative (<em>∂J/∂w, ∂J/∂b, ∂J/∂v, ∂J/∂c</em>) is negative. Taking the negative gradient step <em>θ ← θ - η·∇J</em> results in positive increments to all four parameters, monotonically increasing the output prediction towards 2.0 and decaying the loss to zero.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container"></div>
+
+  <!-- Vendor Libraries (Bundled Locally - Zero Internet Required) -->
+  <script src="vendor/three.min.js"></script>
+  <script src="vendor/OrbitControls.js"></script>
+  <script src="vendor/chart.umd.min.js"></script>
+
+  <!-- Modular View Scripts -->
+  <script src="js/geometry_view.js"></script>
+  <script src="js/ansys_view.js"></script>
+  <script src="js/thermal_view.js"></script>
+  <script src="js/performance_view.js"></script>
+  <script src="js/hardware_view.js"></script>
+  <script src="js/backprop_view.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+</html>
