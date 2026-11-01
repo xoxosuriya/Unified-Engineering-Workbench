@@ -1,19 +1,3 @@
-﻿=================================================================
- PASS SCIENCE WORKS  |  R&D INTERNSHIP 2026-2027                 
- UNIFIED ENGINEERING WORKBENCH                                   
- C++17 Core Engine & High-Performance Embedded Backend           
-=================================================================
-
-[BACKPROP] Running Simple Handwritten Backpropagation Verification...
-# Simple Handwritten Backpropagation Training History (100 Steps)
-# Architecture: h = tanh(w*x + b), y_hat = v*h + c, J = 0.5*(y_hat - y)^2
-# Sample: x=1.00000000, y=2.00000000, Learning Rate eta=0.10000000
-# Initial: w=0.5, b=0, v=1, c=0
-# Finite Difference Verification (epsilon=0.00000100, threshold <= 1e-5):
-#   Param w: Analytical=-1.20946448 | Numerical=-1.20946448 | Diff=0.00000000 (PASSED)
-#   Param b: Analytical=-1.20946448 | Numerical=-1.20946448 | Diff=0.00000000 (PASSED)
-#   Param v: Analytical=-0.71068205 | Numerical=-0.71068205 | Diff=0.00000000 (PASSED)
-#   Param c: Analytical=-1.53788284 | Numerical=-1.53788284 | Diff=0.00000000 (PASSED)
 step,w,b,v,c,z,h,y_hat,loss_J,dJ_dw,dJ_db,dJ_dv,dJ_dc
 0,0.50000000,0.00000000,1.00000000,0.00000000,0.50000000,0.46211716,0.46211716,1.18254182,-1.20946448,-1.20946448,-0.71068205,-1.53788284
 1,0.62094645,0.12094645,1.07106820,0.15378828,0.74189290,0.63028744,0.82886912,0.68577377,-0.75605074,-0.75605074,-0.73814908,-1.17113088
@@ -116,4 +100,3 @@ step,w,b,v,c,z,h,y_hat,loss_J,dJ_dw,dJ_db,dJ_dv,dJ_dc
 98,0.90372929,0.40372929,1.49294792,0.71064398,1.30745857,0.86363095,2.00000000,0.00000000,-0.00000000,-0.00000000,-0.00000000,-0.00000000
 99,0.90372929,0.40372929,1.49294792,0.71064398,1.30745857,0.86363095,2.00000000,0.00000000,-0.00000000,-0.00000000,-0.00000000,-0.00000000
 100,0.90372929,0.40372929,1.49294792,0.71064398,1.30745857,0.86363095,2.00000000,0.00000000,-0.00000000,-0.00000000,-0.00000000,-0.00000000
-
