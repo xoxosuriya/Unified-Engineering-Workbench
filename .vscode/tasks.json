@@ -1,0 +1,29 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build All (CMake)",
+      "type": "shell",
+      "command": "cmake --build build -j",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "Build C++ Test Runner",
+      "type": "shell",
+      "command": "cmake --build build --target workbench_tests -j",
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "Run C++ Verification Suite",
+      "type": "shell",
+      "command": "${workspaceFolder}/build/workbench_tests.exe",
+      "group": "test",
+      "problemMatcher": []
+    }
+  ]
+}
