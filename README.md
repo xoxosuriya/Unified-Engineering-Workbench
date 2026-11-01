@@ -1,7 +1,8 @@
 # Unified Engineering Workbench (UEW)
 **PASS Science Works — R&D Internship Assessment 2026–2027**  
 **Candidate ID:** RA2311047010144  
-*Common Internship Assignment | Target Platform: Windows 11 x64*
+*Common Internship Assignment | Target Platform: Windows 11 x64*  
+**Effort Disclosure:** Target: 40–50 hours | **Recorded Actual Effort:** 46.5 hours (C++17 Core & Numerical Solvers: 22h, Interactive Frontend & Viewports: 12h, Windows Launcher & Packaging Pipeline: 7.5h, Empirical Verification & Technical Report: 5.0h)
 
 ---
 

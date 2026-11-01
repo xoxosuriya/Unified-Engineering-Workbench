@@ -2,7 +2,8 @@
 
 **Candidate ID:** RA2311047010144 | **Target Platform:** Windows 11 x64 (MinGW Static Build)  
 **Organization:** PASS SCIENCE WORKS — R&D Internship 2026–2027 Assessment  
-**Session Run Date:** 2026-11-01 | **Repository Root Binary:** `Launch.exe`
+**Session Run Date:** 2026-11-01 | **Repository Root Binary:** `Launch.exe`  
+**Effort Disclosure:** Target: 40–50 hours | **Recorded Actual Effort:** 46.5 hours
 
 ---
 

@@ -3,6 +3,7 @@
 **Candidate ID:** RA2311047010144 | Unified Engineering Workbench  
 **Organization:** PASS SCIENCE WORKS | R&D Internship 2026-2027  
 **Submission Date:** November 1, 2026  
+**Recorded Effort:** 46.5 hours (Target: 40–50 hours)  
 
 ---
 
