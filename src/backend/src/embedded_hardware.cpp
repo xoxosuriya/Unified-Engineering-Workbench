@@ -293,7 +293,7 @@ public:
         info.serial_number = "JL-59401293";
         info.firmware_version = "J-Link V12 compiled Mar 2026";
         info.voltage_domains = "Target Reference Sensing: 1.2V to 5.0V with Bidirectional Active Level Shifting";
-        info.physical_connector = "Standard 20-Pin 0.1\" Header (ARM JTAG/SWD Pinout)";
+        info.physical_connector = "Standard 20-Pin 2.54mm (0.1-inch) Header (ARM JTAG/SWD Pinout)";
         info.interface_protocol = "IEEE 1149.1 JTAG (TCK, TMS, TDI, TDO, nTRST) / ARM Serial Wire Debug (SWD)";
         info.is_simulated = true;
 

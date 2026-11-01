@@ -5,6 +5,7 @@
 #include <atomic>
 #include <thread>
 #include <memory>
+#include <mutex>
 #include "embedded_hardware.hpp"
 
 namespace workbench {
@@ -50,6 +51,8 @@ private:
     uintptr_t listen_socket_ = 0;
 
     std::unique_ptr<EmbeddedHardwareManager> hw_manager_;
+    std::mutex hw_mutex_;
+    std::atomic<bool> benchmark_cancel_requested_{false};
 };
 
 } // namespace workbench
