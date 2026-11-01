@@ -1,0 +1,193 @@
+// Performance View: Multicore / Multithreaded Execution Benchmark & Scaling Analysis
+const PerformanceView = {
+  speedupChart: null,
+  isBenchmarkRunning: false,
+  abortController: null,
+
+  init() {
+    this.bindEvents();
+    // Load initial benchmark
+    this.runBenchmark();
+  },
+
+  bindEvents() {
+    const runBtn = document.getElementById('perf-run-btn');
+    if (runBtn) {
+      runBtn.addEventListener('click', () => this.runBenchmark());
+    }
+
+    const cancelBtn = document.getElementById('perf-cancel-btn');
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', () => this.cancelBenchmark());
+    }
+
+    const exportBtn = document.getElementById('perf-export-csv-btn');
+    if (exportBtn) {
+      exportBtn.addEventListener('click', () => {
+        window.location.href = '/api/export/performance_csv';
+      });
+    }
+  },
+
+  getParams() {
+    return {
+      cases: parseInt(document.getElementById('perf-param-cases').value) || 1000,
+      mesh: parseInt(document.getElementById('perf-param-mesh').value) || 100,
+      seed: parseInt(document.getElementById('perf-param-seed').value) || 42
+    };
+  },
+
+  cancelBenchmark() {
+    if (this.abortController) {
+      this.abortController.abort();
+      this.setRunning(false);
+      App.showToast("Benchmark execution cancelled by user.", "warning");
+    }
+  },
+
+  setRunning(running) {
+    this.isBenchmarkRunning = running;
+    const runBtn = document.getElementById('perf-run-btn');
+    const cancelBtn = document.getElementById('perf-cancel-btn');
+    const progress = document.getElementById('perf-progress-container');
+    const bar = document.getElementById('perf-progress-bar');
+
+    if (runBtn) runBtn.disabled = running;
+    if (cancelBtn) cancelBtn.style.display = running ? 'inline-flex' : 'none';
+    if (progress) progress.style.display = running ? 'block' : 'none';
+    if (bar && running) {
+      bar.style.width = '20%';
+      setTimeout(() => { if (this.isBenchmarkRunning) bar.style.width = '60%'; }, 200);
+      setTimeout(() => { if (this.isBenchmarkRunning) bar.style.width = '90%'; }, 500);
+    }
+  },
+
+  runBenchmark() {
+    const p = this.getParams();
+    this.setRunning(true);
+    App.showToast(`Running multicore batch solver benchmark (${p.cases} cases, mesh N=${p.mesh})...`, "info");
+
+    this.abortController = new AbortController();
+
+    fetch(`/api/performance/run?cases=${p.cases}&mesh=${p.mesh}&seed=${p.seed}`, {
+      signal: this.abortController.signal
+    })
+      .then(r => r.json())
+      .then(data => {
+        this.setRunning(false);
+        this.renderHardwareSpecs(data);
+        this.renderRepetitionsTable(data.results);
+        this.renderSpeedupChart(data.results);
+
+        // Agreement Check Badge
+        const badge = document.getElementById('perf-agreement-badge');
+        const diffText = document.getElementById('perf-max-diff-val');
+        if (badge && diffText) {
+          diffText.textContent = data.max_absolute_temp_diff_C.toExponential(4) + ' °C';
+          if (data.numerical_agreement_passed) {
+            badge.className = 'pill pill-success';
+            badge.textContent = 'PASSED (<= 1e-8 °C)';
+          } else {
+            badge.className = 'pill pill-danger';
+            badge.textContent = 'FAILED';
+          }
+        }
+
+        App.showToast("Multicore benchmark completed successfully!", "success");
+      })
+      .catch(err => {
+        if (err.name !== 'AbortError') {
+          this.setRunning(false);
+          App.showToast("Benchmark failed: " + err, "error");
+        }
+      });
+  },
+
+  renderHardwareSpecs(data) {
+    document.getElementById('perf-cpu-model').textContent = data.cpu_model || 'Multi-Core Processor';
+    document.getElementById('perf-cores-logical').textContent = `${data.hardware_concurrency} Logical Cores`;
+    document.getElementById('perf-compiler-flags').textContent = `${data.compiler_info} (${data.optimization_flags})`;
+    document.getElementById('perf-launch-ready-time').textContent = `${data.launch_to_ready_ms.toFixed(2)} ms`;
+    document.getElementById('perf-warmup-time').textContent = `${data.warmup_duration_ms.toFixed(2)} ms`;
+  },
+
+  renderRepetitionsTable(results) {
+    const tbody = document.getElementById('perf-repetitions-tbody');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+    results.forEach(r => {
+      const tr = document.createElement('tr');
+      const repCols = r.repetitions.map(dur => `<td>${dur.toFixed(2)} ms</td>`).join('');
+      tr.innerHTML = `
+        <td style="font-weight:700; color:#fff;">p = ${r.workers} Worker${r.workers > 1 ? 's' : ''}</td>
+        ${repCols}
+        <td style="font-weight:700; color:#38bdf8;">${r.median_ms.toFixed(2)} ms</td>
+        <td style="font-weight:700; color:#34d399;">${r.speedup.toFixed(2)}x</td>
+        <td><span class="pill pill-cyan">${(r.efficiency * 100).toFixed(1)}%</span></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  },
+
+  renderSpeedupChart(results) {
+    const ctx = document.getElementById('perf-speedup-chart');
+    if (!ctx) return;
+
+    if (this.speedupChart) this.speedupChart.destroy();
+
+    const labels = results.map(r => `${r.workers} Core${r.workers > 1 ? 's' : ''}`);
+    const speedups = results.map(r => r.speedup);
+    const ideal = results.map(r => r.workers);
+
+    this.speedupChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Measured Speedup (T1 / Tp)',
+            data: speedups,
+            backgroundColor: 'rgba(6, 182, 212, 0.75)',
+            borderColor: '#06b6d4',
+            borderWidth: 1
+          },
+          {
+            label: 'Ideal Linear Speedup',
+            data: ideal,
+            type: 'line',
+            borderColor: '#10b981',
+            borderDash: [4, 4],
+            borderWidth: 2,
+            pointBackgroundColor: '#10b981',
+            fill: false
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: '#f3f4f6', font: { family: 'inherit', size: 12 } } },
+          tooltip: {
+            callbacks: {
+              afterBody: (ctxs) => {
+                const idx = ctxs[0].dataIndex;
+                const eff = (results[idx].efficiency * 100).toFixed(1);
+                return `Parallel Efficiency: ${eff}%`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: { ticks: { color: '#9ca3af' }, grid: { color: 'rgba(255, 255, 255, 0.05)' } },
+          y: {
+            title: { display: true, text: 'Speedup Factor', color: '#9ca3af' },
+            ticks: { color: '#9ca3af' },
+            grid: { color: 'rgba(255, 255, 255, 0.05)' }
+          }
+        }
+      }
+    });
+  }
+};
