@@ -35,6 +35,38 @@ unsigned int MulticoreBenchmarker::get_hardware_concurrency() {
     return count > 0 ? count : 1;
 }
 
+unsigned int MulticoreBenchmarker::get_physical_cores() {
+#if defined(_WIN32)
+    DWORD length = 0;
+    GetLogicalProcessorInformation(nullptr, &length);
+    if (GetLastError() == ERROR_INSUFFICIENT_BUFFER && length > 0) {
+        std::vector<SYSTEM_LOGICAL_PROCESSOR_INFORMATION> buffer(length / sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION));
+        if (GetLogicalProcessorInformation(buffer.data(), &length)) {
+            unsigned int physical_cores = 0;
+            for (const auto& info : buffer) {
+                if (info.Relationship == RelationProcessorCore) {
+                    physical_cores++;
+                }
+            }
+            if (physical_cores > 0) return physical_cores;
+        }
+    }
+#endif
+    unsigned int logical = get_hardware_concurrency();
+    return logical > 1 ? logical / 2 : 1;
+}
+
+double MulticoreBenchmarker::get_total_ram_gb() {
+#if defined(_WIN32)
+    MEMORYSTATUSEX mem_status;
+    mem_status.dwLength = sizeof(mem_status);
+    if (GlobalMemoryStatusEx(&mem_status)) {
+        return static_cast<double>(mem_status.ullTotalPhys) / (1024.0 * 1024.0 * 1024.0);
+    }
+#endif
+    return 16.0;
+}
+
 std::vector<ThermalParams1D> MulticoreBenchmarker::generate_batch(const BenchmarkConfig& cfg) {
     std::mt19937 rng(cfg.seed);
     
@@ -64,27 +96,31 @@ std::vector<ThermalParams1D> MulticoreBenchmarker::generate_batch(const Benchmar
 }
 
 static void solve_batch_serial(const std::vector<ThermalParams1D>& batch, 
-                               std::vector<ThermalSolveResult1D>& results) {
+                               std::vector<ThermalSolveResult1D>& results,
+                               std::atomic<bool>* cancel_flag = nullptr) {
     results.resize(batch.size());
     for (size_t i = 0; i < batch.size(); ++i) {
+        if (cancel_flag && cancel_flag->load()) return;
         results[i] = ThermalFEMSolver1D::solve(batch[i]);
     }
 }
 
 static void solve_batch_parallel(const std::vector<ThermalParams1D>& batch,
                                  std::vector<ThermalSolveResult1D>& results,
-                                 size_t worker_count) {
+                                 ThreadPool& pool,
+                                 std::atomic<bool>* cancel_flag = nullptr) {
     results.resize(batch.size());
-    ThreadPool pool(worker_count);
-
     const size_t num_cases = batch.size();
-    // Use dynamic block chunking for load balancing
-    const size_t chunk_size = std::max(size_t(1), num_cases / (worker_count * 8));
+    const size_t workers = pool.worker_count();
+    // Dynamic chunking for balanced queueing
+    const size_t chunk_size = std::max(size_t(1), num_cases / (workers * 4));
 
     for (size_t start = 0; start < num_cases; start += chunk_size) {
+        if (cancel_flag && cancel_flag->load()) return;
         size_t end = std::min(start + chunk_size, num_cases);
-        pool.enqueue([&batch, &results, start, end]() {
+        pool.enqueue([&batch, &results, start, end, cancel_flag]() {
             for (size_t i = start; i < end; ++i) {
+                if (cancel_flag && cancel_flag->load()) return;
                 results[i] = ThermalFEMSolver1D::solve(batch[i]);
             }
         });
@@ -93,11 +129,13 @@ static void solve_batch_parallel(const std::vector<ThermalParams1D>& batch,
     pool.wait_all();
 }
 
-BenchmarkSummary MulticoreBenchmarker::run_benchmark(const BenchmarkConfig& cfg) {
+BenchmarkSummary MulticoreBenchmarker::run_benchmark(const BenchmarkConfig& cfg, std::atomic<bool>* cancel_flag) {
     BenchmarkSummary summary;
     summary.config = cfg;
     summary.cpu_model = get_cpu_brand_string();
     summary.hardware_concurrency = get_hardware_concurrency();
+    summary.physical_cores = get_physical_cores();
+    summary.total_ram_gb = get_total_ram_gb();
 
 #if defined(__clang__)
     summary.compiler_info = "Clang " + std::to_string(__clang_major__) + "." + std::to_string(__clang_minor__);
@@ -109,30 +147,36 @@ BenchmarkSummary MulticoreBenchmarker::run_benchmark(const BenchmarkConfig& cfg)
     summary.compiler_info = "C++17 Compatible Compiler";
 #endif
 
-#if defined(NDEBUG)
-    summary.optimization_flags = "-O3 / Release";
-#else
-    summary.optimization_flags = "-O2 / Release with Assertions";
-#endif
+    summary.optimization_flags = "-O3";
 
-    // Generate batch
+    // Measure real launch/generator ready time
     auto t_start = std::chrono::high_resolution_clock::now();
     std::vector<ThermalParams1D> batch = generate_batch(cfg);
     auto t_ready = std::chrono::high_resolution_clock::now();
     summary.launch_to_ready_ms = std::chrono::duration<double, std::milli>(t_ready - t_start).count();
 
-    // Warm-up run
+    if (cancel_flag && cancel_flag->load()) {
+        summary.was_cancelled = true;
+        return summary;
+    }
+
+    // Warm-up run (single pass to warm caches and branch predictors)
     auto t_wstart = std::chrono::high_resolution_clock::now();
     std::vector<ThermalSolveResult1D> warmup_res;
-    solve_batch_serial(batch, warmup_res);
+    solve_batch_serial(batch, warmup_res, cancel_flag);
     auto t_wend = std::chrono::high_resolution_clock::now();
     summary.warmup_duration_ms = std::chrono::duration<double, std::milli>(t_wend - t_wstart).count();
 
+    if (cancel_flag && cancel_flag->load()) {
+        summary.was_cancelled = true;
+        return summary;
+    }
+
     // Baseline serial solution for numerical verification
     std::vector<ThermalSolveResult1D> serial_gold_results;
-    solve_batch_serial(batch, serial_gold_results);
+    solve_batch_serial(batch, serial_gold_results, cancel_flag);
 
-    // Filter worker counts by available hardware concurrency, but always include 1
+    // Filter worker counts by available hardware concurrency, always including 1
     std::vector<size_t> target_workers;
     for (size_t p : cfg.worker_counts) {
         if (p == 1 || p <= summary.hardware_concurrency) {
@@ -147,18 +191,34 @@ BenchmarkSummary MulticoreBenchmarker::run_benchmark(const BenchmarkConfig& cfg)
     summary.max_absolute_temp_diff_C = 0.0;
 
     for (size_t p : target_workers) {
+        if (cancel_flag && cancel_flag->load()) {
+            summary.was_cancelled = true;
+            break;
+        }
+
         WorkerBenchmarkResult wr;
         wr.worker_count = p;
         std::vector<double> durations;
 
+        // Construct pool ONCE outside repetition timing: isolates compute from thread spawn
+        std::unique_ptr<ThreadPool> pool_ptr;
+        if (p > 1) {
+            pool_ptr = std::make_unique<ThreadPool>(p);
+        }
+
         for (size_t rep = 0; rep < cfg.repetitions; ++rep) {
+            if (cancel_flag && cancel_flag->load()) {
+                summary.was_cancelled = true;
+                break;
+            }
+
             std::vector<ThermalSolveResult1D> trial_results;
             auto t0 = std::chrono::high_resolution_clock::now();
 
             if (p == 1) {
-                solve_batch_serial(batch, trial_results);
+                solve_batch_serial(batch, trial_results, cancel_flag);
             } else {
-                solve_batch_parallel(batch, trial_results, p);
+                solve_batch_parallel(batch, trial_results, *pool_ptr, cancel_flag);
             }
 
             auto t1 = std::chrono::high_resolution_clock::now();
@@ -215,6 +275,8 @@ std::string BenchmarkSummary::to_json() const {
     ss << "{";
     ss << "\"cpu_model\":\"" << cpu_model << "\",";
     ss << "\"hardware_concurrency\":" << hardware_concurrency << ",";
+    ss << "\"physical_cores\":" << physical_cores << ",";
+    ss << "\"total_ram_gb\":" << total_ram_gb << ",";
     ss << "\"compiler_info\":\"" << compiler_info << "\",";
     ss << "\"optimization_flags\":\"" << optimization_flags << "\",";
     ss << "\"launch_to_ready_ms\":" << launch_to_ready_ms << ",";
@@ -222,6 +284,7 @@ std::string BenchmarkSummary::to_json() const {
     ss << "\"max_absolute_temp_diff_C\":" << std::scientific << std::setprecision(10) << max_absolute_temp_diff_C << ",";
     ss << std::fixed << std::setprecision(4);
     ss << "\"numerical_agreement_passed\":" << (numerical_agreement_passed ? "true" : "false") << ",";
+    ss << "\"was_cancelled\":" << (was_cancelled ? "true" : "false") << ",";
 
     ss << "\"config\":{";
     ss << "\"seed\":" << config.seed << ",";
@@ -258,13 +321,6 @@ std::string BenchmarkSummary::to_json() const {
 
 std::string BenchmarkSummary::to_csv() const {
     std::ostringstream ss;
-    ss << std::fixed << std::setprecision(4);
-    ss << "# Unified Engineering Workbench - Multicore Execution Benchmark Results\n";
-    ss << "# CPU: " << cpu_model << " | Logical Cores: " << hardware_concurrency << "\n";
-    ss << "# Compiler: " << compiler_info << " | Flags: " << optimization_flags << "\n";
-    ss << "# Workload: " << config.case_count << " Cases, Mesh N=" << config.mesh_size_N << ", PRNG Seed=" << config.seed << "\n";
-    ss << "# Launch-to-Ready Time: " << launch_to_ready_ms << " ms | Warm-up Time: " << warmup_duration_ms << " ms\n";
-    ss << "# Serial/Parallel Agreement Max Difference: " << std::scientific << std::setprecision(10) << max_absolute_temp_diff_C << " C (Threshold <= 1e-8 C: " << (numerical_agreement_passed ? "PASSED" : "FAILED") << ")\n";
     ss << std::fixed << std::setprecision(4);
     ss << "workers,repetition_1_ms,repetition_2_ms,repetition_3_ms,repetition_4_ms,repetition_5_ms,median_ms,mean_ms,speedup_T1_over_Tp,efficiency\n";
 

@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>
 #include <cstdint>
+#include <atomic>
 #include "thermal_fea_1d.hpp"
 
 namespace workbench {
@@ -35,6 +36,8 @@ struct BenchmarkSummary {
     BenchmarkConfig config;
     std::string cpu_model;
     unsigned int hardware_concurrency = 0;
+    unsigned int physical_cores = 0;
+    double total_ram_gb = 0.0;
     std::string compiler_info;
     std::string optimization_flags;
     
@@ -46,6 +49,7 @@ struct BenchmarkSummary {
     // Serial vs Parallel numerical agreement check
     double max_absolute_temp_diff_C = 0.0;
     bool numerical_agreement_passed = false; // diff <= 1e-8 C
+    bool was_cancelled = false;
 
     std::string to_json() const;
     std::string to_csv() const;
@@ -55,12 +59,14 @@ class MulticoreBenchmarker {
 public:
     static std::vector<ThermalParams1D> generate_batch(const BenchmarkConfig& cfg);
 
-    // Run full benchmark suite
-    static BenchmarkSummary run_benchmark(const BenchmarkConfig& cfg);
+    // Run full benchmark suite (with optional cancellation flag)
+    static BenchmarkSummary run_benchmark(const BenchmarkConfig& cfg, std::atomic<bool>* cancel_flag = nullptr);
 
     // Query system hardware info
     static std::string get_cpu_brand_string();
     static unsigned int get_hardware_concurrency();
+    static unsigned int get_physical_cores();
+    static double get_total_ram_gb();
 };
 
 } // namespace workbench

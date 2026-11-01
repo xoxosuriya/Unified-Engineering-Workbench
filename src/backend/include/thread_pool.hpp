@@ -45,6 +45,12 @@ public:
     // Request cooperative cancellation
     void cancel();
 
+    // Check if cancellation was requested
+    bool is_cancelled() const { return cancel_requested_.load(); }
+
+    // Reset cancellation flag
+    void reset_cancel() { cancel_requested_.store(false); }
+
     // Query active thread count
     size_t worker_count() const { return workers_.size(); }
 
