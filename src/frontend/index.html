@@ -270,7 +270,10 @@
             <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
               <button id="fea-solve-btn" class="btn btn-primary">Solve Selected Mesh</button>
               <button id="fea-run-convergence-btn" class="btn btn-secondary">Run Full Study (N=10,20,40,80)</button>
-              <button id="fea-export-csv-btn" class="btn btn-secondary">Export Results CSV</button>
+              <div style="display:flex; gap:8px;">
+                <button id="fea-export-csv-btn" class="btn btn-secondary" style="flex:1;">Export Convergence CSV</button>
+                <button id="fea-export-profile-btn" class="btn btn-secondary" style="flex:1;">Export T(x) Profile CSV</button>
+              </div>
             </div>
           </div>
 
@@ -362,10 +365,13 @@
               <input type="number" id="perf-param-seed" class="form-input" value="42">
             </div>
 
-            <div id="perf-progress-container" style="display:none;">
-              <div class="metric-label">Execution Progress</div>
+            <div id="perf-progress-container" style="display:none; margin-top:8px;">
+              <div style="font-size:11px; color:#38bdf8; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;">
+                <span id="perf-progress-label">Benchmarking worker pool (1, 2, 4 threads)...</span>
+                <span class="status-dot animate-pulse"></span>
+              </div>
               <div class="progress-bar-container">
-                <div id="perf-progress-bar" class="progress-bar-fill"></div>
+                <div id="perf-progress-bar" class="progress-bar-fill indeterminate-bar"></div>
               </div>
             </div>
 
@@ -383,7 +389,8 @@
             </div>
             <div style="font-size:12px; display:flex; flex-direction:column; gap:8px;">
               <div><strong style="color:var(--text-muted);">CPU:</strong> <span id="perf-cpu-model" style="color:#fff;">Detecting...</span></div>
-              <div><strong style="color:var(--text-muted);">Cores:</strong> <span id="perf-cores-logical" style="color:#38bdf8;">—</span></div>
+              <div><strong style="color:var(--text-muted);">Topology:</strong> <span id="perf-cores-logical" style="color:#38bdf8;">—</span></div>
+              <div><strong style="color:var(--text-muted);">System RAM:</strong> <span id="perf-ram-total" style="color:#34d399;">—</span></div>
               <div><strong style="color:var(--text-muted);">Compiler:</strong> <span id="perf-compiler-flags" style="color:#a855f7;">—</span></div>
               <div><strong style="color:var(--text-muted);">Launch-to-Ready:</strong> <span id="perf-launch-ready-time" style="color:#34d399;">—</span></div>
               <div><strong style="color:var(--text-muted);">Warm-up Compute:</strong> <span id="perf-warmup-time" style="color:#f59e0b;">—</span></div>
@@ -482,7 +489,7 @@
                 <button class="overlay-btn hw-device-tab" data-device-id="fpga_artix7">FPGA (Artix-7)</button>
                 <button class="overlay-btn hw-device-tab" data-device-id="jtag_jlink">JTAG Probe (Segger J-Link)</button>
               </div>
-              <span class="pill pill-cyan">LIVE 10 Hz STREAM</span>
+              <span class="pill pill-cyan">SIMULATED / 10 Hz MOCK</span>
             </div>
 
             <!-- MCU Panel -->

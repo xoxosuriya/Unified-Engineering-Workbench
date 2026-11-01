@@ -24,25 +24,51 @@ const PerformanceView = {
     const exportBtn = document.getElementById('perf-export-csv-btn');
     if (exportBtn) {
       exportBtn.addEventListener('click', () => {
-        window.location.href = '/api/export/performance_csv';
+        const p = this.getParams();
+        if (!p) return;
+        window.location.href = `/api/export/performance_csv?cases=${p.cases}&mesh=${p.mesh}&seed=${p.seed}`;
       });
     }
   },
 
   getParams() {
-    return {
-      cases: parseInt(document.getElementById('perf-param-cases').value) || 1000,
-      mesh: parseInt(document.getElementById('perf-param-mesh').value) || 100,
-      seed: parseInt(document.getElementById('perf-param-seed').value) || 42
-    };
+    const casesEl = document.getElementById('perf-param-cases');
+    const meshEl = document.getElementById('perf-param-mesh');
+    const seedEl = document.getElementById('perf-param-seed');
+
+    const cases_str = casesEl ? casesEl.value.trim() : "";
+    const mesh_str = meshEl ? meshEl.value.trim() : "";
+    const seed_str = seedEl ? seedEl.value.trim() : "";
+
+    const cases = parseInt(cases_str, 10);
+    const mesh = parseInt(mesh_str, 10);
+    const seed = parseInt(seed_str, 10);
+
+    // Strict validation
+    if (!cases_str || isNaN(cases) || cases < 1) {
+      App.showToast("Batch case count must be an integer >= 1.", "error");
+      return null;
+    }
+    if (!mesh_str || isNaN(mesh) || mesh < 2) {
+      App.showToast("Mesh size per case N must be an integer >= 2.", "error");
+      return null;
+    }
+    if (!seed_str || isNaN(seed) || seed < 0) {
+      App.showToast("PRNG seed must be a non-negative integer.", "error");
+      return null;
+    }
+
+    return { cases, mesh, seed };
   },
 
   cancelBenchmark() {
+    App.showToast("Requesting backend cooperative thread pool cancellation...", "warning");
+    fetch('/api/performance/cancel', { method: 'POST' }).catch(() => {});
     if (this.abortController) {
       this.abortController.abort();
-      this.setRunning(false);
-      App.showToast("Benchmark execution cancelled by user.", "warning");
     }
+    this.setRunning(false);
+    App.showToast("Benchmark execution cancelled by user.", "warning");
   },
 
   setRunning(running) {
@@ -50,29 +76,32 @@ const PerformanceView = {
     const runBtn = document.getElementById('perf-run-btn');
     const cancelBtn = document.getElementById('perf-cancel-btn');
     const progress = document.getElementById('perf-progress-container');
-    const bar = document.getElementById('perf-progress-bar');
+    const label = document.getElementById('perf-progress-label');
 
     if (runBtn) runBtn.disabled = running;
     if (cancelBtn) cancelBtn.style.display = running ? 'inline-flex' : 'none';
     if (progress) progress.style.display = running ? 'block' : 'none';
-    if (bar && running) {
-      bar.style.width = '20%';
-      setTimeout(() => { if (this.isBenchmarkRunning) bar.style.width = '60%'; }, 200);
-      setTimeout(() => { if (this.isBenchmarkRunning) bar.style.width = '90%'; }, 500);
+    if (label) {
+      label.textContent = running ? "Benchmarking worker pool (1, 2, 4 threads)..." : "Ready";
     }
   },
 
   runBenchmark() {
     const p = this.getParams();
+    if (!p) return;
+
     this.setRunning(true);
-    App.showToast(`Running multicore batch solver benchmark (${p.cases} cases, mesh N=${p.mesh})...`, "info");
+    App.showToast(`Running multicore batch benchmark (${p.cases} cases, mesh N=${p.mesh})...`, "info");
 
     this.abortController = new AbortController();
 
     fetch(`/api/performance/run?cases=${p.cases}&mesh=${p.mesh}&seed=${p.seed}`, {
       signal: this.abortController.signal
     })
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) return r.text().then(t => { throw new Error(t); });
+        return r.json();
+      })
       .then(data => {
         this.setRunning(false);
         this.renderHardwareSpecs(data);
@@ -96,19 +125,27 @@ const PerformanceView = {
         App.showToast("Multicore benchmark completed successfully!", "success");
       })
       .catch(err => {
+        this.setRunning(false);
         if (err.name !== 'AbortError') {
-          this.setRunning(false);
-          App.showToast("Benchmark failed: " + err, "error");
+          App.showToast("Benchmark failed: " + err.message, "error");
         }
       });
   },
 
   renderHardwareSpecs(data) {
-    document.getElementById('perf-cpu-model').textContent = data.cpu_model || 'Multi-Core Processor';
-    document.getElementById('perf-cores-logical').textContent = `${data.hardware_concurrency} Logical Cores`;
-    document.getElementById('perf-compiler-flags').textContent = `${data.compiler_info} (${data.optimization_flags})`;
-    document.getElementById('perf-launch-ready-time').textContent = `${data.launch_to_ready_ms.toFixed(2)} ms`;
-    document.getElementById('perf-warmup-time').textContent = `${data.warmup_duration_ms.toFixed(2)} ms`;
+    const cpuEl = document.getElementById('perf-cpu-model');
+    const coresEl = document.getElementById('perf-cores-logical');
+    const ramEl = document.getElementById('perf-ram-total');
+    const compEl = document.getElementById('perf-compiler-flags');
+    const launchEl = document.getElementById('perf-launch-ready-time');
+    const warmupEl = document.getElementById('perf-warmup-time');
+
+    if (cpuEl) cpuEl.textContent = data.cpu_model || 'Host Multi-Core CPU';
+    if (coresEl) coresEl.textContent = `${data.physical_cores} Physical Cores / ${data.hardware_concurrency} Threads`;
+    if (ramEl) ramEl.textContent = `${data.total_ram_gb ? data.total_ram_gb.toFixed(1) : 16.0} GB RAM`;
+    if (compEl) compEl.textContent = `${data.compiler_info} (${data.optimization_flags})`;
+    if (launchEl) launchEl.textContent = `${data.launch_to_ready_ms.toFixed(2)} ms`;
+    if (warmupEl) warmupEl.textContent = `${data.warmup_duration_ms.toFixed(2)} ms`;
   },
 
   renderRepetitionsTable(results) {
