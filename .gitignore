@@ -1,0 +1,36 @@
+# Build artifacts
+build/
+bin/
+*.obj
+*.o
+*.a
+*.lib
+*.pdb
+*.ilk
+*.exp
+
+# VS Code / IDE temporary files
+.vscode/.browse.*
+.vscode/ipch/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# OS temporary files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+# Temporary editor backups
+*~
+*.swp
+*.bak
+*.tmp
+
+# Packaging output (keep separate from source tree)
+*.zip
+*.7z
+*.tar.gz
