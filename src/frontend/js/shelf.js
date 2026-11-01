@@ -9,12 +9,12 @@ window.Shelf = (function() {
 
   // Config & Constants
   const NUM_MODULES = 6;
-  const COPIES = 3;
-  const TOTAL_TAPES = NUM_MODULES * COPIES; // 18 tapes
+  const COPIES = 7;
+  const TOTAL_TAPES = NUM_MODULES * COPIES; // 42 tapes
 
   // State
-  let s = 8.0; // Start on index 2 (Thermal FEA) in middle copy: 2 + 6 = 8
-  let T = 8.0;
+  let s = 20.0; // Start on index 2 (Thermal FEA) in middle copy: 2 + 3 * 6 = 20
+  let T = 20.0;
   let activeModuleIndex = 2;
   let isDragging = false;
   let dragStartX = 0;

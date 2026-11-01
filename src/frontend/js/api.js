@@ -61,7 +61,12 @@ window.API = (function() {
     }
   }
 
+  let lastStatusData = null;
+  let lastIsHealthy = false;
+
   function notifyStatus(statusData, isHealthy) {
+    lastStatusData = statusData;
+    lastIsHealthy = isHealthy;
     statusListeners.forEach(fn => fn(statusData, isHealthy, isMock));
   }
 
@@ -105,28 +110,34 @@ window.API = (function() {
   function startStatusPolling() {
     if (pollIntervalId) clearInterval(pollIntervalId);
     pollIntervalId = setInterval(async () => {
-      if (isMock) {
-        const st = await MockBackend.getStatus();
-        notifyStatus(st, true);
-        return;
-      }
-
       try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 2000);
         const res = await fetch('/api/status', {
-          headers: { 'Accept': 'application/json' }
+          headers: { 'Accept': 'application/json' },
+          signal: controller.signal
         });
+        clearTimeout(timeout);
         if (res.ok) {
           const st = await res.json();
           sessionToken = st.session_token || sessionToken;
           activePort = st.active_port || activePort;
+          if (isMock) {
+            setMockMode(false);
+          }
           notifyStatus(st, true);
-        } else {
-          notifyStatus(null, false);
+          return;
         }
       } catch (err) {
-        notifyStatus(null, false);
+        // Backend offline or unreachable
       }
-    }, CONFIG.statusPollIntervalMs || 5000);
+
+      if (!isMock) {
+        setMockMode(true);
+      }
+      const st = await MockBackend.getStatus();
+      notifyStatus(st, false);
+    }, CONFIG.statusPollIntervalMs || 2000);
   }
 
   return {
@@ -141,6 +152,9 @@ window.API = (function() {
 
     onStatusChange: function(fn) {
       statusListeners.push(fn);
+      if (lastStatusData !== null) {
+        try { fn(lastStatusData, lastIsHealthy, isMock); } catch (e) {}
+      }
     },
 
     getSessionToken: function() {

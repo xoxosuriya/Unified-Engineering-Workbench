@@ -43,12 +43,13 @@ window.App = (function() {
     Cursor.init();
     UI.init();
     Shelf.init();
-    await API.init();
 
     // Hook status change
     API.onStatusChange((statusData, isHealthy, isMock) => {
       updateStatusChip(statusData, isHealthy, isMock);
     });
+
+    await API.init();
   }
 
   function updateStatusChip(statusData, isHealthy, isMock) {
