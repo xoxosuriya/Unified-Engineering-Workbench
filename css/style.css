@@ -588,6 +588,18 @@ body {
   transition: width 0.3s ease;
 }
 
+.progress-bar-fill.indeterminate-bar {
+  width: 100% !important;
+  background: linear-gradient(90deg, var(--accent-cyan) 0%, var(--accent-indigo) 50%, var(--accent-emerald) 100%);
+  background-size: 200% 100%;
+  animation: indeterminateShimmer 1.5s infinite linear;
+}
+
+@keyframes indeterminateShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
 /* Toast Notifications */
 #toast-container {
   position: fixed;
