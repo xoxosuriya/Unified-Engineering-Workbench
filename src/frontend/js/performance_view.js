@@ -71,6 +71,51 @@ const PerformanceView = {
     App.showToast("Benchmark execution cancelled by user.", "warning");
   },
 
+  startProgressPolling() {
+    this.stopProgressPolling();
+    const label = document.getElementById('perf-progress-label');
+    const bar = document.getElementById('perf-progress-bar');
+
+    this.progressInterval = setInterval(() => {
+      fetch('/api/performance/progress')
+        .then(r => r.json())
+        .then(p => {
+          if (!this.isBenchmarkRunning) return;
+          if (label) {
+            if (p.phase === 'measure') {
+              label.textContent = `[MEASURE] Workers: ${p.worker_count} | Rep: ${p.rep} | Step: ${p.step}/${p.total_steps} (${Math.round(p.elapsed_ms)} ms)`;
+            } else if (p.phase === 'generate') {
+              label.textContent = `[GENERATE] Synthesizing test cases... (${Math.round(p.elapsed_ms)} ms)`;
+            } else if (p.phase === 'warmup') {
+              label.textContent = `[WARMUP] Priming CPU caches and thread queues... (${Math.round(p.elapsed_ms)} ms)`;
+            } else if (p.phase === 'gold') {
+              label.textContent = `[BASELINE] Computing serial gold verification... (${Math.round(p.elapsed_ms)} ms)`;
+            } else {
+              label.textContent = `[RUNNING] Active benchmark (${Math.round(p.elapsed_ms)} ms)...`;
+            }
+          }
+          if (bar && p.total_steps > 0) {
+            bar.classList.remove('indeterminate-bar');
+            const pct = Math.min(100, Math.round((p.step / p.total_steps) * 100));
+            bar.style.width = pct + '%';
+          }
+        })
+        .catch(() => {});
+    }, 150);
+  },
+
+  stopProgressPolling() {
+    if (this.progressInterval) {
+      clearInterval(this.progressInterval);
+      this.progressInterval = null;
+    }
+    const bar = document.getElementById('perf-progress-bar');
+    if (bar) {
+      bar.classList.add('indeterminate-bar');
+      bar.style.width = '100%';
+    }
+  },
+
   setRunning(running) {
     this.isBenchmarkRunning = running;
     const runBtn = document.getElementById('perf-run-btn');
@@ -82,7 +127,13 @@ const PerformanceView = {
     if (cancelBtn) cancelBtn.style.display = running ? 'inline-flex' : 'none';
     if (progress) progress.style.display = running ? 'block' : 'none';
     if (label) {
-      label.textContent = running ? "Benchmarking worker pool (1, 2, 4 threads)..." : "Ready";
+      label.textContent = running ? "Initializing benchmark..." : "Ready";
+    }
+
+    if (running) {
+      this.startProgressPolling();
+    } else {
+      this.stopProgressPolling();
     }
   },
 

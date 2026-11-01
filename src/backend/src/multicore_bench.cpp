@@ -14,6 +14,54 @@
 
 namespace workbench {
 
+std::atomic<bool> MulticoreBenchmarker::progress_running{false};
+std::atomic<int> MulticoreBenchmarker::progress_phase{0};
+std::atomic<size_t> MulticoreBenchmarker::progress_worker_count{0};
+std::atomic<size_t> MulticoreBenchmarker::progress_rep{0};
+std::atomic<size_t> MulticoreBenchmarker::progress_step{0};
+std::atomic<size_t> MulticoreBenchmarker::progress_total_steps{0};
+std::atomic<int64_t> MulticoreBenchmarker::progress_start_time_ms{0};
+
+std::string BenchmarkProgress::to_json() const {
+    std::ostringstream ss;
+    ss << "{"
+       << "\"running\":" << (running ? "true" : "false") << ","
+       << "\"phase\":\"" << phase << "\","
+       << "\"worker_count\":" << worker_count << ","
+       << "\"rep\":" << rep << ","
+       << "\"step\":" << step << ","
+       << "\"total_steps\":" << total_steps << ","
+       << "\"elapsed_ms\":" << elapsed_ms
+       << "}";
+    return ss.str();
+}
+
+BenchmarkProgress MulticoreBenchmarker::get_progress() {
+    BenchmarkProgress p;
+    p.running = progress_running.load();
+    int ph = progress_phase.load();
+    switch (ph) {
+        case 1: p.phase = "generate"; break;
+        case 2: p.phase = "warmup"; break;
+        case 3: p.phase = "gold"; break;
+        case 4: p.phase = "measure"; break;
+        default: p.phase = "idle"; break;
+    }
+    p.worker_count = progress_worker_count.load();
+    p.rep = progress_rep.load();
+    p.step = progress_step.load();
+    p.total_steps = progress_total_steps.load();
+    if (p.running) {
+        auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now().time_since_epoch()).count();
+        int64_t start = progress_start_time_ms.load();
+        p.elapsed_ms = (start > 0 && now_ms >= start) ? static_cast<double>(now_ms - start) : 0.0;
+    } else {
+        p.elapsed_ms = 0.0;
+    }
+    return p;
+}
+
 std::string MulticoreBenchmarker::get_cpu_brand_string() {
 #if defined(_WIN32)
     int cpuInfo[4] = {-1};
@@ -130,6 +178,17 @@ static void solve_batch_parallel(const std::vector<ThermalParams1D>& batch,
 }
 
 BenchmarkSummary MulticoreBenchmarker::run_benchmark(const BenchmarkConfig& cfg, std::atomic<bool>* cancel_flag) {
+    struct ProgressGuard {
+        ~ProgressGuard() {
+            MulticoreBenchmarker::progress_running.store(false);
+            MulticoreBenchmarker::progress_phase.store(0);
+        }
+    } prog_guard;
+
+    progress_running.store(true);
+    progress_start_time_ms.store(std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()).count());
+
     BenchmarkSummary summary;
     summary.config = cfg;
     summary.cpu_model = get_cpu_brand_string();
@@ -149,33 +208,6 @@ BenchmarkSummary MulticoreBenchmarker::run_benchmark(const BenchmarkConfig& cfg,
 
     summary.optimization_flags = "-O3";
 
-    // Measure real launch/generator ready time
-    auto t_start = std::chrono::high_resolution_clock::now();
-    std::vector<ThermalParams1D> batch = generate_batch(cfg);
-    auto t_ready = std::chrono::high_resolution_clock::now();
-    summary.launch_to_ready_ms = std::chrono::duration<double, std::milli>(t_ready - t_start).count();
-
-    if (cancel_flag && cancel_flag->load()) {
-        summary.was_cancelled = true;
-        return summary;
-    }
-
-    // Warm-up run (single pass to warm caches and branch predictors)
-    auto t_wstart = std::chrono::high_resolution_clock::now();
-    std::vector<ThermalSolveResult1D> warmup_res;
-    solve_batch_serial(batch, warmup_res, cancel_flag);
-    auto t_wend = std::chrono::high_resolution_clock::now();
-    summary.warmup_duration_ms = std::chrono::duration<double, std::milli>(t_wend - t_wstart).count();
-
-    if (cancel_flag && cancel_flag->load()) {
-        summary.was_cancelled = true;
-        return summary;
-    }
-
-    // Baseline serial solution for numerical verification
-    std::vector<ThermalSolveResult1D> serial_gold_results;
-    solve_batch_serial(batch, serial_gold_results, cancel_flag);
-
     // Filter worker counts by available hardware concurrency, always including 1
     std::vector<size_t> target_workers;
     for (size_t p : cfg.worker_counts) {
@@ -187,8 +219,54 @@ BenchmarkSummary MulticoreBenchmarker::run_benchmark(const BenchmarkConfig& cfg,
     }
     std::sort(target_workers.begin(), target_workers.end());
 
+    size_t total_steps = 3 + target_workers.size() * cfg.repetitions;
+    progress_total_steps.store(total_steps);
+
+    // Phase 1: Generate batch
+    progress_phase.store(1); // "generate"
+    progress_worker_count.store(0);
+    progress_rep.store(0);
+    progress_step.store(1);
+
+    auto t_start = std::chrono::high_resolution_clock::now();
+    std::vector<ThermalParams1D> batch = generate_batch(cfg);
+    auto t_ready = std::chrono::high_resolution_clock::now();
+    summary.launch_to_ready_ms = std::chrono::duration<double, std::milli>(t_ready - t_start).count();
+
+    if (cancel_flag && cancel_flag->load()) {
+        summary.was_cancelled = true;
+        return summary;
+    }
+
+    // Phase 2: Warm-up run
+    progress_phase.store(2); // "warmup"
+    progress_worker_count.store(1);
+    progress_rep.store(1);
+    progress_step.store(2);
+
+    auto t_wstart = std::chrono::high_resolution_clock::now();
+    std::vector<ThermalSolveResult1D> warmup_res;
+    solve_batch_serial(batch, warmup_res, cancel_flag);
+    auto t_wend = std::chrono::high_resolution_clock::now();
+    summary.warmup_duration_ms = std::chrono::duration<double, std::milli>(t_wend - t_wstart).count();
+
+    if (cancel_flag && cancel_flag->load()) {
+        summary.was_cancelled = true;
+        return summary;
+    }
+
+    // Phase 3: Baseline serial solution for numerical verification
+    progress_phase.store(3); // "gold"
+    progress_worker_count.store(1);
+    progress_rep.store(1);
+    progress_step.store(3);
+
+    std::vector<ThermalSolveResult1D> serial_gold_results;
+    solve_batch_serial(batch, serial_gold_results, cancel_flag);
+
     double baseline_T1_median = 0.0;
     summary.max_absolute_temp_diff_C = 0.0;
+    size_t current_step = 3;
 
     for (size_t p : target_workers) {
         if (cancel_flag && cancel_flag->load()) {
@@ -211,6 +289,12 @@ BenchmarkSummary MulticoreBenchmarker::run_benchmark(const BenchmarkConfig& cfg,
                 summary.was_cancelled = true;
                 break;
             }
+
+            current_step++;
+            progress_phase.store(4); // "measure"
+            progress_worker_count.store(p);
+            progress_rep.store(rep + 1);
+            progress_step.store(current_step);
 
             std::vector<ThermalSolveResult1D> trial_results;
             auto t0 = std::chrono::high_resolution_clock::now();

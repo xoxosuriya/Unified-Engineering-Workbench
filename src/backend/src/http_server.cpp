@@ -629,6 +629,15 @@ HttpResponse HttpServer::route_request(const HttpRequest& req) {
         return resp;
     }
 
+    // Benchmark Real Progress (Thread-Safe & Non-blocking)
+    if (req.path == "/api/performance/progress") {
+        BenchmarkProgress prog = MulticoreBenchmarker::get_progress();
+        resp.status_code = 200;
+        resp.content_type = "application/json";
+        resp.body = prog.to_json();
+        return resp;
+    }
+
     // Hardware Discovery (Thread-Safe)
     if (req.path == "/api/hardware/discover") {
         std::lock_guard<std::mutex> lock(hw_mutex_);

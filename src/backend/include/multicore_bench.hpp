@@ -55,12 +55,35 @@ struct BenchmarkSummary {
     std::string to_csv() const;
 };
 
+struct BenchmarkProgress {
+    bool running = false;
+    std::string phase = "idle";
+    size_t worker_count = 0;
+    size_t rep = 0;
+    size_t step = 0;
+    size_t total_steps = 0;
+    double elapsed_ms = 0.0;
+
+    std::string to_json() const;
+};
+
 class MulticoreBenchmarker {
 public:
     static std::vector<ThermalParams1D> generate_batch(const BenchmarkConfig& cfg);
 
     // Run full benchmark suite (with optional cancellation flag)
     static BenchmarkSummary run_benchmark(const BenchmarkConfig& cfg, std::atomic<bool>* cancel_flag = nullptr);
+
+    // Progress tracking atomics
+    static std::atomic<bool> progress_running;
+    static std::atomic<int> progress_phase;
+    static std::atomic<size_t> progress_worker_count;
+    static std::atomic<size_t> progress_rep;
+    static std::atomic<size_t> progress_step;
+    static std::atomic<size_t> progress_total_steps;
+    static std::atomic<int64_t> progress_start_time_ms;
+
+    static BenchmarkProgress get_progress();
 
     // Query system hardware info
     static std::string get_cpu_brand_string();
