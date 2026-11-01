@@ -32,7 +32,12 @@ const App = {
     if (shutdownBtn) {
       shutdownBtn.addEventListener('click', () => {
         if (confirm("Shut down the local Workbench C++ background server?")) {
-          fetch('/api/shutdown', { method: 'POST' })
+          fetch('/api/shutdown', {
+            method: 'POST',
+            headers: {
+              'X-Session-Token': this.sessionToken || ''
+            }
+          })
             .then(() => {
               App.showToast("Workbench server shutting down. You may close this browser tab.", "warning");
               document.getElementById('header-status-badge').innerHTML = '<span class="status-dot" style="background:#ef4444; box-shadow:none;"></span> OFFLINE';
@@ -68,6 +73,7 @@ const App = {
     fetch('/api/status')
       .then(r => r.json())
       .then(data => {
+        this.sessionToken = data.session_token || '';
         document.getElementById('header-cpu-info').textContent = `${data.cpu_model} (${data.hardware_concurrency}T)`;
       })
       .catch(() => {

@@ -124,11 +124,7 @@ const GeometryView = {
 
   loadSample() {
     App.showToast("Loading Sample Mechanical Bracket STL...", "info");
-    fetch('/api/stl/parse', {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: 'filepath:data/sample_bracket.stl'
-    })
+    fetch('/api/samples/stl')
     .then(r => r.json())
     .then(data => {
       if (data.success) {
