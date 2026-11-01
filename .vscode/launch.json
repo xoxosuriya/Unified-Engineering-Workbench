@@ -3,25 +3,41 @@
   "configurations": [
     {
       "name": "Launch Unified Engineering Workbench (One-Action)",
-      "type": "cppvsdbg",
+      "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}/Launch.exe",
       "args": [],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
       "environment": [],
-      "console": "internalConsole"
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ]
     },
     {
       "name": "Run C++ Verification Tests (One-Action)",
-      "type": "cppvsdbg",
+      "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}/workbench_tests.exe",
       "args": [],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
       "environment": [],
-      "console": "internalConsole"
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ]
     }
   ]
 }

@@ -62,29 +62,30 @@ The Unified Engineering Workbench enforces a decoupled three-tier architecture:
 | **ANSYS Nodal Temperatures** | `.csv` | `node_id,x_m,y_m,z_m,temperature_C` (labeled synthetic in header) | Tested to **50 MB** / 500,000 nodes | Validates header format, positive integer IDs, finite coordinates, and rejects temperatures below absolute zero ($-273.15^\circ\text{C}$). |
 
 Sample files supplied with the distribution:
-- [`data/sample_bracket.stl`](./data/sample_bracket.stl): Analytical CAD model of a structural mounting bracket with dual stiffener ribs (32 facets, units in meters). Full provenance documented in [`data/provenance.md`](./data/provenance.md).
-- [`data/ansys_thermal_synthetic.csv`](./data/ansys_thermal_synthetic.csv): Synthetic steady-state nodal temperature field on the bracket geometry (3,485 nodes, range $25.0^\circ\text{C}$ to $103.9^\circ\text{C}$). Clearly disclosed as synthetic.
-- Negative test cases in [`data/test_samples/`](./data/test_samples/): `empty.stl`, `corrupted_syntax.stl`, `nan_coords.stl`, `missing_columns.csv`, `sub_absolute_zero.csv`.
+- [`data/sample_bracket.stl`](./data/sample_bracket.stl): Analytical CAD model of a structural mounting bracket with dual stiffener ribs (32 facets, area $0.0463\text{ m}^2$ ($462.97\text{ cm}^2$), bounding box $100 \times 80 \times 100\text{ mm}$, units in meters). Full provenance documented in [`data/provenance.md`](./data/provenance.md).
+- [`data/ansys_thermal_synthetic.csv`](./data/ansys_thermal_synthetic.csv): Synthetic steady-state nodal temperature field on the bracket geometry (3,485 nodes, range $36.87^\circ\text{C}$ to $104.00^\circ\text{C}$, average $65.08^\circ\text{C}$). Clearly disclosed as synthetic.
+- Negative test cases in [`data/test_samples/`](./data/test_samples/): `empty.stl`, `corrupted_syntax.stl`, `nan_coords.stl`, `missing_columns.csv`, `sub_absolute_zero.csv`, `negative_coords.stl`.
 
 ---
 
 ## 4. Key Engineering Results Summary
 
 ### Task C: Thermal FEA & Mesh Convergence
-- Solves $-d/dx(kA dT/dx) = qA$ for uniform rod ($L=1\text{ m}, A=10^{-4}\text{ m}^2, k=10\text{ W/(m K)}, q=10000\text{ W/m}^3, T_0=100^\circ\text{C}, T_L=20^\circ\text{C}$).
+- Solves $-d/dx(kA dT/dx) = qA$ for uniform rod ($L=1\text{ m}, A=10^{-4}\text{ m}^2, k=10\text{ W/(m·K)}, q=10000\text{ W/m}^3, T_0=100^\circ\text{C}, T_L=20^\circ\text{C}$).
 - Exact analytical solution: $T_{\text{exact}}(x) = 100 - 80x + 500x(1-x)$.
-- **Nodal Exactness:** Finite element nodal temperatures match the analytical solution to machine precision ($0.00 \times 10^0\ ^\circ\text{C}$ error).
+- **Nodal Exactness:** Finite element nodal temperatures match the analytical solution to machine precision ($< 10^{-14\ \circ}\text{C}$ error).
 - **Midpoint Error:** Evaluated at element midpoints via linear interpolation, matching theoretical error $\frac{qh^2}{8k}$ with exact second-order $O(h^2)$ convergence ($p = 2.000$):
   - $N=10$: $1.2500^\circ\text{C}$
   - $N=20$: $0.3125^\circ\text{C}$ (ratio $4.00$)
   - $N=40$: $0.0781^\circ\text{C}$ (ratio $4.00$)
   - $N=80$: $0.0195^\circ\text{C}$ (ratio $4.00$)
+- Spatial $T(x)$ profile exported across all meshes in [`results/fea_profile.csv`](./results/fea_profile.csv).
 
 ### Task D: Multicore Execution & Numerical Agreement
-- Bounded worker pool testing 1,000 independent batch solves across $p \in \{1, 2, 4\}$ threads with fixed seed $42$.
+- Persistent worker pool testing 3,000 independent batch solves across $p \in \{1, 2, 4\}$ threads with fixed seed $42$ on an 8-core host CPU (GCC `-O3`).
 - **Numerical Agreement:** Serial and parallel results match identically across all nodes:
   $$\max |T_{\text{serial}} - T_{\text{parallel}}| = \mathbf{0.00 \times 10^0\ ^\circ\text{C}} \le 1.0 \times 10^{-8\ \circ}\text{C} \quad (\mathbf{PASSED})$$
-- 5 measured repetitions, median time, speedup, and efficiency recorded in [`results/multicore_scaling.csv`](./results/multicore_scaling.csv).
+- 5 measured repetitions, median time (14.90 ms, 8.79 ms, 7.12 ms), speedup ($1.70\times$ on 2 workers, $2.09\times$ on 4 workers), and efficiency recorded in [`results/multicore_scaling.csv`](./results/multicore_scaling.csv).
 
 ### Task E: Embedded Integration Architecture
 - Models a modular testbench for an STM32H7 MCU, Xilinx Artix-7 FPGA, and Segger J-Link probe.
@@ -116,12 +117,12 @@ cmake --build build -j
 
 ### Running Automated Test Suite:
 ```powershell
-# Run the 12-test positive, negative, and numerical accuracy suite
-./build/workbench_tests.exe
+# Run the 18-test positive, negative, disk file, and numerical accuracy suite
+./workbench_tests.exe
 ```
 *Expected Output:*
 ```
-Test Summary: 12 Passed, 0 Failed (100% Pass Rate)
+Test Summary: 18 Passed, 0 Failed (100% Pass Rate)
 ```
 
 ### Command-Line CLI Execution:
@@ -140,15 +141,17 @@ Test Summary: 12 Passed, 0 Failed (100% Pass Rate)
 
 ## 6. Directory Structure
 ```
-d:\PASS/
+RA2311047010144_Workbench/
 ├── Launch.exe                       # Standalone zero-prerequisite Windows launcher
 ├── workbench_backend.exe           # CLI runner & headless server executable
+├── workbench_tests.exe             # 18-test automated unit & verification executable
 ├── CMakeLists.txt                   # Standard root CMake build configuration
+├── DEPENDENCIES.md                  # Third-party inventory, versions & MIT license texts
 ├── README.md                        # Primary project documentation
 ├── .gitignore                       # Clean repository exclusions
 ├── .vscode/
-│   ├── launch.json                  # One-action editor launch configuration
-│   └── tasks.json                   # Build and test tasks
+│   ├── launch.json                  # One-action editor launch configuration (gdb)
+│   └── tasks.json                   # Build and test tasks with CMake configure
 ├── src/
 │   ├── backend/                     # C++17 Core Engine (Separated from presentation)
 │   │   ├── include/                 # Header files (parsers, solvers, thread pool, hardware)
@@ -160,24 +163,25 @@ d:\PASS/
 │       ├── js/                      # Modular view controllers
 │       └── vendor/                  # Bundled offline dependencies (Three.js, Chart.js)
 ├── data/
-│   ├── sample_bracket.stl           # ASCII STL geometry with provenance
-│   ├── ansys_thermal_synthetic.csv  # Synthetic ANSYS nodal temperature export
-│   ├── test_samples/                # Negative test specimens (empty, NaN, corrupt)
+│   ├── sample_bracket.stl           # ASCII STL geometry with provenance (32 facets)
+│   ├── ansys_thermal_synthetic.csv  # Synthetic ANSYS nodal temperature export (3,485 nodes)
+│   ├── test_samples/                # Negative test specimens (empty, NaN, corrupt, bounds)
 │   └── provenance.md                # Provenance and schema documentation
 ├── tests/
-│   └── test_runner.cpp              # 12-test automated unit and numerical verification suite
+│   └── test_runner.cpp              # 18-test automated unit and numerical verification suite
 ├── results/
-│   ├── fea_convergence.csv          # Raw FEA convergence data
-│   ├── multicore_scaling.csv        # Raw multicore timing repetitions
-│   ├── backprop_loss.csv            # Raw 100-step training loss history
+│   ├── fea_convergence.csv          # Clean FEA convergence data
+│   ├── fea_profile.csv              # Spatial T(x) temperature profile across all meshes
+│   ├── multicore_scaling.csv        # Clean multicore timing repetitions & speedup
+│   ├── backprop_loss.csv            # Clean 100-step training loss history
 │   └── plots/                       # Labelled vector plots (SVG)
 └── docs/
-    ├── Workbench_Report.md          # 6-page technical engineering report
+    ├── Workbench_Report.md          # Comprehensive technical engineering report
     ├── AI_LOG.md                    # Transparent AI-assistance log & critique records
     ├── OWNERSHIP.md                 # Statement of ownership and reused code disclosures
-    ├── DEMONSTRATION_WALKTHROUGH.md # 3.5-minute video and walkthrough logs
-    ├── workbench_demo.webp          # Full browser demonstration video recording
-    └── handwritten_backprop/        # 2-page handwritten derivation document & scans
+    ├── DEMONSTRATION_WALKTHROUGH.md # Verification walkthrough logs
+    ├── workbench_demo.webp          # Animated browser demonstration session recording
+    └── handwritten_backprop/        # Handwritten derivation document & photo scans
 ```
 
 ---

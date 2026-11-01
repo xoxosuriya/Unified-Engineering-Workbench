@@ -13,14 +13,14 @@ This document records the provenance, coordinate systems, dimensional units, sch
 - **Dimensional Units**: Meters ($m$)
 - **Coordinate Reference Frame**:
   - Origin $(0, 0, 0)$ is located at the intersection of the outer rear corner of the base and upright flange.
-  - $X$-axis: Extends horizontally along the base plate ($0.01\,m \le x \le 0.10\,m$).
+  - $X$-axis: Extends horizontally along the base plate ($0.00\,m \le x \le 0.10\,m$).
   - $Y$-axis: Extends along bracket width ($0.00\,m \le y \le 0.08\,m$).
   - $Z$-axis: Extends vertically along upright flange ($0.00\,m \le z \le 0.10\,m$).
 - **Geometry Characteristics**:
   - Triangles: 32 planar triangular facets
-  - Total Surface Area: $0.0526\,m^2$
-  - Bounding Box: Min $[0.00, 0.00, 0.00]\,m$, Max $[0.10, 0.08, 0.10]\,m$
-  - Facet Normals: Outward-pointing unit vectors satisfying right-hand rule vertex ordering.
+  - Total Surface Area: $0.0463\,m^2$ ($462.97\,\text{cm}^2$)
+  - Bounding Box: Min $[0.00, 0.00, 0.00]\,m$, Max $[0.10, 0.08, 0.10]\,m$ ($100 \times 80 \times 100\,\text{mm}$)
+  - Facet Normals: Open surface shell structure (non-watertight); individual facet normals represent planar facet normal vectors, rendered using double-sided lighting.
 - **License**: Creative Commons Zero (CC0 1.0 Universal - Public Domain Dedication).
 - **Tested File-Size Limits**: Tested up to 50 MB / 500,000 triangles.
 
@@ -40,8 +40,8 @@ This document records the provenance, coordinate systems, dimensional units, sch
   5. `temperature_C` (Float): Steady-state nodal temperature in degrees Celsius ($^\circ\text{C}$).
 - **Physical Modeling Parameters Simulated**:
   - Base mounting edge boundary condition: Prescribed heat source contact ($100.0^\circ\text{C}$).
-  - Convective heat transfer coefficient to ambient air ($T_{\infty} = 25.0^\circ\text{C}$) on flange faces.
-  - Temperature Range: Min $25.00^\circ\text{C}$, Max $103.88^\circ\text{C}$, Average $43.21^\circ\text{C}$.
+  - Convective heat transfer coefficient to ambient air on flange faces.
+  - Temperature Range: Min $36.87^\circ\text{C}$, Max $104.00^\circ\text{C}$, Average $65.08^\circ\text{C}$.
   - Total Nodes: 3,485 nodes.
 - **Tested File-Size Limits**: Tested up to 50 MB / 500,000 nodes.
 

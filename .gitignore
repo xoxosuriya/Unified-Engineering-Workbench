@@ -35,3 +35,6 @@ $RECYCLE.BIN/
 *.7z
 *.tar.gz
 *.bundle
+
+# Scratch testing scripts
+scratch/

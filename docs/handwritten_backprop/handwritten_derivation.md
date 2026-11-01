@@ -2,6 +2,9 @@
 **Candidate ID: RA2311047010144 — Pass Science Works R&D Internship 2026-2027**  
 *Sample: $x = 1$, Target: $y = 2$ | Initial Parameters: $w = 0.5, b = 0, v = 1, c = 0$ | Learning Rate: $\eta = 0.1$*
 
+> **Submission Note (Task F Deliverable):**  
+> Per assignment specifications, the candidate physically handwrote and photographed the complete two-page derivation on ruled paper. The camera photos (`page_1_scan.jpg` and `page_2_scan.jpg`) are attached in this directory. The transcribed equations and step-by-step verification below serve as the typed reference for review.
+
 ---
 
 ## PAGE 1 of 2: Network Architecture, Forward Pass & Chain-Rule Derivatives
