@@ -1,0 +1,298 @@
+#include <iostream>
+#include <cassert>
+#include <cmath>
+#include <string>
+#include <vector>
+#include "stl_parser.hpp"
+#include "ansys_parser.hpp"
+#include "thermal_fea_1d.hpp"
+#include "multicore_bench.hpp"
+#include "embedded_hardware.hpp"
+#include "backprop_engine.hpp"
+
+using namespace workbench;
+
+static int g_tests_passed = 0;
+static int g_tests_failed = 0;
+
+#define TEST_ASSERT(cond, msg) \
+    do { \
+        if (!(cond)) { \
+            std::cerr << "  [FAIL] " << msg << " (" << __FILE__ << ":" << __LINE__ << ")\n"; \
+            g_tests_failed++; \
+            return; \
+        } \
+    } while(0)
+
+#define RUN_TEST(fn) \
+    do { \
+        std::cout << "[RUN] " << #fn << "...\n"; \
+        int prev_failed = g_tests_failed; \
+        fn(); \
+        if (g_tests_failed == prev_failed) { \
+            std::cout << "  [PASS] " << #fn << "\n"; \
+            g_tests_passed++; \
+        } \
+    } while(0)
+
+// -------------------------------------------------------------
+// 1. STL Parser Tests (Positive & Negative)
+// -------------------------------------------------------------
+void test_stl_parser_positive() {
+    std::string valid_stl = 
+        "solid test_triangle\n"
+        "  facet normal 0.0 0.0 1.0\n"
+        "    outer loop\n"
+        "      vertex 0.0 0.0 0.0\n"
+        "      vertex 1.0 0.0 0.0\n"
+        "      vertex 0.0 1.0 0.0\n"
+        "    endloop\n"
+        "  endfacet\n"
+        "endsolid test_triangle\n";
+
+    StlParseResult res = StlParser::parse_string(valid_stl);
+    TEST_ASSERT(res.success, "Valid STL must parse successfully: " + res.error_message);
+    TEST_ASSERT(res.facet_count == 1, "Facet count must be 1");
+    TEST_ASSERT(std::abs(res.surface_area - 0.5) < 1e-9, "Surface area of (0,0)-(1,0)-(0,1) must be 0.5");
+    TEST_ASSERT(res.min_bound.x == 0.0 && res.max_bound.x == 1.0, "Bounding box min/max X correct");
+    TEST_ASSERT(res.solid_name == "test_triangle", "Solid name parsed correctly");
+}
+
+void test_stl_parser_empty_file() {
+    StlParseResult res = StlParser::parse_string("");
+    TEST_ASSERT(!res.success, "Empty STL must be rejected");
+    TEST_ASSERT(res.error_message.find("empty") != std::string::npos, "Error message must state empty file");
+}
+
+void test_stl_parser_nan_coords() {
+    std::string nan_stl = 
+        "solid nan_solid\n"
+        "  facet normal 0.0 0.0 1.0\n"
+        "    outer loop\n"
+        "      vertex NaN 0.0 0.0\n"
+        "      vertex 1.0 0.0 0.0\n"
+        "      vertex 0.0 1.0 0.0\n"
+        "    endloop\n"
+        "  endfacet\n"
+        "endsolid nan_solid\n";
+
+    StlParseResult res = StlParser::parse_string(nan_stl);
+    TEST_ASSERT(!res.success, "STL with NaN coordinate must be rejected");
+    TEST_ASSERT(res.error_message.find("NaN") != std::string::npos, "Error message must mention NaN");
+}
+
+void test_stl_parser_malformed_syntax() {
+    std::string bad_syntax = 
+        "solid broken\n"
+        "  facet normal 0.0 0.0 1.0\n"
+        "    vertex 0.0 0.0 0.0\n"
+        "endsolid broken\n";
+
+    StlParseResult res = StlParser::parse_string(bad_syntax);
+    TEST_ASSERT(!res.success, "Malformed syntax (missing outer loop) must be rejected");
+}
+
+// -------------------------------------------------------------
+// 2. ANSYS CSV Parser Tests (Positive & Negative)
+// -------------------------------------------------------------
+void test_ansys_parser_positive() {
+    std::string valid_csv = 
+        "# Synthetic ANSYS Nodal Temperatures\n"
+        "node_id,x_m,y_m,z_m,temperature_C\n"
+        "1,0.00,0.00,0.00,100.0\n"
+        "2,0.10,0.00,0.00,137.0\n"
+        "3,0.20,0.00,0.00,164.0\n";
+
+    AnsysParseResult res = AnsysParser::parse_string(valid_csv);
+    TEST_ASSERT(res.success, "Valid ANSYS CSV must parse successfully: " + res.error_message);
+    TEST_ASSERT(res.node_count == 3, "Node count must be 3");
+    TEST_ASSERT(res.min_temp_C == 100.0 && res.max_temp_C == 164.0, "Min/max temp correct");
+    TEST_ASSERT(res.is_synthetic, "Synthetic header must be recognized");
+}
+
+void test_ansys_parser_empty_file() {
+    AnsysParseResult res = AnsysParser::parse_string("");
+    TEST_ASSERT(!res.success, "Empty CSV must be rejected");
+    TEST_ASSERT(res.error_message.find("empty") != std::string::npos, "Error message must mention empty");
+}
+
+void test_ansys_parser_missing_header() {
+    std::string bad_header = 
+        "id,x,y,z,temp\n"
+        "1,0,0,0,100\n";
+
+    AnsysParseResult res = AnsysParser::parse_string(bad_header);
+    TEST_ASSERT(!res.success, "CSV with incorrect header must be rejected");
+    TEST_ASSERT(res.error_message.find("Invalid CSV header") != std::string::npos, "Actionable header error message");
+}
+
+void test_ansys_parser_below_absolute_zero() {
+    std::string sub_zero = 
+        "node_id,x_m,y_m,z_m,temperature_C\n"
+        "1,0.00,0.00,0.00,-300.0\n";
+
+    AnsysParseResult res = AnsysParser::parse_string(sub_zero);
+    TEST_ASSERT(!res.success, "Temperature below absolute zero (-300 C) must be rejected");
+    TEST_ASSERT(res.error_message.find("absolute zero") != std::string::npos, "Error mentions absolute zero");
+}
+
+// -------------------------------------------------------------
+// 3. 1D Thermal FEA Numerical Tests
+// -------------------------------------------------------------
+void test_thermal_fea_analytical_and_convergence() {
+    ThermalParams1D p;
+    p.length_L = 1.0;
+    p.area_A = 1e-4;
+    p.conductivity_k = 10.0;
+    p.heat_gen_q = 10000.0;
+    p.temp_T0 = 100.0;
+    p.temp_TL = 20.0;
+    p.num_elements_N = 10;
+
+    ThermalSolveResult1D sol = ThermalFEMSolver1D::solve(p);
+    
+    // Boundary conditions
+    TEST_ASSERT(std::abs(sol.node_temp_fea.front() - 100.0) < 1e-12, "T(0) == 100 C exact");
+    TEST_ASSERT(std::abs(sol.node_temp_fea.back() - 20.0) < 1e-12, "T(L) == 20 C exact");
+
+    // Nodal superconvergence: Nodal error must be near machine epsilon
+    TEST_ASSERT(sol.max_nodal_error < 1e-10, "1D linear FEA with uniform heat generation is nodally exact (< 1e-10 C)");
+
+    // Midpoint error theoretical check: q * h^2 / (8 * k)
+    // For N = 10, h = 0.1, error = 10000 * 0.01 / 80 = 1.25 C
+    double expected_mid_err = (10000.0 * 0.01) / (8.0 * 10.0);
+    TEST_ASSERT(std::abs(sol.max_midpoint_error - expected_mid_err) < 1e-10, 
+                "Midpoint error for N=10 must match q*h^2/(8*k) = 1.25 C");
+
+    // Convergence study for N = 10, 20, 40, 80
+    ConvergenceStudyResult study = ThermalFEMSolver1D::run_convergence_study(p);
+    TEST_ASSERT(study.rows.size() == 4, "Study must contain 4 mesh levels");
+
+    // Check O(h^2) rate: ratio between consecutive meshes must be approx 4.0
+    for (size_t i = 1; i < study.rows.size(); ++i) {
+        double ratio = study.rows[i].error_reduction_ratio;
+        double rate = study.rows[i].observed_convergence_rate;
+        TEST_ASSERT(std::abs(ratio - 4.0) < 1e-4, "Error reduction ratio must be 4.0 when doubling mesh count");
+        TEST_ASSERT(std::abs(rate - 2.0) < 1e-4, "Observed convergence rate must be 2.0 (second-order)");
+    }
+}
+
+// -------------------------------------------------------------
+// 4. Multicore Batch Execution & Agreement Tests
+// -------------------------------------------------------------
+void test_multicore_bench_agreement() {
+    BenchmarkConfig cfg;
+    cfg.seed = 42;
+    cfg.case_count = 50; // fast unit test
+    cfg.mesh_size_N = 20;
+    cfg.repetitions = 2;
+    cfg.worker_counts = {1, 2};
+
+    BenchmarkSummary summary = MulticoreBenchmarker::run_benchmark(cfg);
+    TEST_ASSERT(summary.numerical_agreement_passed, 
+                "Serial and parallel solutions must agree within 1e-8 C");
+    TEST_ASSERT(summary.max_absolute_temp_diff_C <= 1e-8, 
+                "Max temp diff <= 1e-8 C");
+    TEST_ASSERT(summary.worker_results.size() >= 1, "Must have worker timing results");
+}
+
+// -------------------------------------------------------------
+// 5. Embedded Hardware Mock & Recovery Tests
+// -------------------------------------------------------------
+void test_embedded_hardware_lifecycle_and_fault_recovery() {
+    EmbeddedHardwareManager mgr;
+    auto devices = mgr.discover_devices();
+    TEST_ASSERT(devices.size() == 3, "Must discover exactly 3 devices (MCU, FPGA, JTAG)");
+
+    // Test MCU Connection
+    bool conn_ok = mgr.connect_device("mcu_stm32h7");
+    TEST_ASSERT(conn_ok, "MCU connection must succeed");
+
+    TelemetryPacket pkt = mgr.read_device_telemetry("mcu_stm32h7");
+    TEST_ASSERT(pkt.state == DeviceConnectionState::STREAMING_TELEMETRY, "MCU state must be STREAMING_TELEMETRY");
+    TEST_ASSERT(pkt.mcu_vcc_volts > 3.2 && pkt.mcu_vcc_volts < 3.4, "MCU VCC nominal around 3.3V");
+
+    // Inject Fault: Communication Timeout
+    mgr.inject_device_fault("mcu_stm32h7", SimulatedFaultType::COMMUNICATION_TIMEOUT);
+    TelemetryPacket faulted_pkt = mgr.read_device_telemetry("mcu_stm32h7");
+    TEST_ASSERT(faulted_pkt.state == DeviceConnectionState::ERROR_FAULTED, "MCU state must be ERROR_FAULTED");
+    TEST_ASSERT(faulted_pkt.status_message.find("timeout") != std::string::npos, "Fault message indicates timeout");
+
+    // Recover Fault
+    bool rec_ok = mgr.recover_device_fault("mcu_stm32h7");
+    TEST_ASSERT(rec_ok, "Recovery must succeed");
+    TelemetryPacket recovered_pkt = mgr.read_device_telemetry("mcu_stm32h7");
+    TEST_ASSERT(recovered_pkt.state == DeviceConnectionState::STREAMING_TELEMETRY, "MCU state restored to nominal");
+}
+
+// -------------------------------------------------------------
+// 6. Simple Handwritten Backpropagation & Gradient Check Tests
+// -------------------------------------------------------------
+void test_backpropagation_gradient_check() {
+    BackpropSummary bp = BackpropEngine::run_full_study();
+
+    // Verify initial forward pass at x=1, target y=2, w=0.5, b=0, v=1, c=0
+    // z = 0.5, h = tanh(0.5) = 0.462117157, y_hat = 0.462117157, diff = -1.53788284, loss = 1.1825418
+    TEST_ASSERT(std::abs(bp.step_0.forward.z - 0.5) < 1e-12, "z == 0.5");
+    TEST_ASSERT(std::abs(bp.step_0.forward.h - std::tanh(0.5)) < 1e-12, "h == tanh(0.5)");
+    TEST_ASSERT(std::abs(bp.step_0.forward.y_hat - std::tanh(0.5)) < 1e-12, "y_hat == tanh(0.5)");
+    TEST_ASSERT(std::abs(bp.step_0.forward.loss_J - 1.182541818) < 1e-6, "loss_J == 1.182542");
+
+    // Verify analytical gradients
+    // dJ/dc = -1.5378828
+    // dJ/dv = -1.5378828 * 0.462117 = -0.710682
+    // dJ/dw = -1.5378828 * 1 * (1 - 0.462117^2) * 1 = -1.2094645
+    // dJ/db = -1.2094645
+    TEST_ASSERT(std::abs(bp.step_0.gradients.dJ_dc - (-1.53788284)) < 1e-5, "dJ_dc correct");
+    TEST_ASSERT(std::abs(bp.step_0.gradients.dJ_dv - (-0.71068205)) < 1e-5, "dJ_dv correct");
+    TEST_ASSERT(std::abs(bp.step_0.gradients.dJ_dw - (-1.20946452)) < 1e-5, "dJ_dw correct");
+    TEST_ASSERT(std::abs(bp.step_0.gradients.dJ_db - (-1.20946452)) < 1e-5, "dJ_db correct");
+
+    // Verify finite difference gradient check passed (tolerance <= 1e-5 with epsilon = 1e-6)
+    TEST_ASSERT(bp.all_gradient_checks_passed, "All finite difference gradient checks must pass <= 1e-5");
+
+    // Verify 100 training steps: loss must strictly decrease
+    TEST_ASSERT(bp.history_100_steps.size() == 101, "History has 101 records (step 0 to 100)");
+    double initial_loss = bp.history_100_steps.front().forward.loss_J;
+    double final_loss = bp.history_100_steps.back().forward.loss_J;
+    TEST_ASSERT(final_loss < initial_loss, "Training must reduce loss");
+    TEST_ASSERT(final_loss < 0.01, "Loss after 100 steps must converge close to 0 (< 0.01)");
+}
+
+// -------------------------------------------------------------
+// Test Runner Main
+// -------------------------------------------------------------
+int main() {
+    std::cout << "=================================================================\n";
+    std::cout << " UNIFIED ENGINEERING WORKBENCH - C++ VERIFICATION TEST SUITE     \n";
+    std::cout << " Positive, Negative, and Numerical Accuracy Tests                \n";
+    std::cout << "=================================================================\n";
+
+    // Task B Tests
+    RUN_TEST(test_stl_parser_positive);
+    RUN_TEST(test_stl_parser_empty_file);
+    RUN_TEST(test_stl_parser_nan_coords);
+    RUN_TEST(test_stl_parser_malformed_syntax);
+    RUN_TEST(test_ansys_parser_positive);
+    RUN_TEST(test_ansys_parser_empty_file);
+    RUN_TEST(test_ansys_parser_missing_header);
+    RUN_TEST(test_ansys_parser_below_absolute_zero);
+
+    // Task C Tests
+    RUN_TEST(test_thermal_fea_analytical_and_convergence);
+
+    // Task D Tests
+    RUN_TEST(test_multicore_bench_agreement);
+
+    // Task E Tests
+    RUN_TEST(test_embedded_hardware_lifecycle_and_fault_recovery);
+
+    // Task F Tests
+    RUN_TEST(test_backpropagation_gradient_check);
+
+    std::cout << "=================================================================\n";
+    std::cout << " Test Summary: " << g_tests_passed << " Passed, " << g_tests_failed << " Failed\n";
+    std::cout << "=================================================================\n";
+
+    return (g_tests_failed == 0) ? 0 : 1;
+}
