@@ -16,6 +16,7 @@ window.App = (function() {
     'geometry': () => window.GeometryView,
     'ansys': () => window.AnsysView,
     'thermal': () => window.ThermalView,
+    'thermal3d': () => window.Thermal3dView || window.Thermal3DView,
     'backprop': () => window.BackpropView,
     'performance': () => window.PerformanceView,
     'hardware': () => window.HardwareView
@@ -43,31 +44,60 @@ window.App = (function() {
     Cursor.init();
     UI.init();
     Shelf.init();
+    await API.init();
 
     // Hook status change
     API.onStatusChange((statusData, isHealthy, isMock) => {
       updateStatusChip(statusData, isHealthy, isMock);
     });
-
-    await API.init();
   }
 
   function updateStatusChip(statusData, isHealthy, isMock) {
     const chip = document.querySelector('#top-status-chip');
     if (!chip) return;
 
+    const footerEngine = document.querySelector('#footer-engine-info');
+
     if (!isHealthy) {
       chip.className = 'status-chip offline';
-      chip.innerHTML = `<span class="chip-dot"></span> <span>BACKEND OFFLINE</span>`;
+      chip.style.borderColor = '';
+      chip.style.color = '';
+      chip.innerHTML = `<span class="chip-dot"></span> <span>BACKEND UNAVAILABLE</span> <button type="button" id="btn-toggle-demo" style="background:none;border:none;color:inherit;text-decoration:underline;cursor:pointer;font-size:10px;margin-left:4px;">(Demo Mode)</button>`;
+      chip.querySelector('#btn-toggle-demo')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        API.enableDemoMode();
+      });
+      if (footerEngine) footerEngine.textContent = 'ENGINE: C++17 (OFFLINE · CLICK DEMO MODE TO SIMULATE)';
       return;
     }
 
+    if (isMock) {
+      chip.className = 'status-chip offline';
+      chip.style.borderColor = '#d97706';
+      chip.style.color = '#d97706';
+      chip.innerHTML = `<span class="chip-dot" style="background-color: #d97706;"></span> <span>DEMO MODE (SYNTHETIC)</span> <button type="button" id="btn-retry-backend" style="background:none;border:none;color:inherit;text-decoration:underline;cursor:pointer;font-size:10px;margin-left:4px;">(Reconnect)</button>`;
+      chip.querySelector('#btn-retry-backend')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        API.disableDemoMode();
+      });
+      if (footerEngine) footerEngine.textContent = 'ENGINE: DEMO MODE (SYNTHETIC DATA)';
+      return;
+    }
+
+    chip.style.borderColor = '';
+    chip.style.color = '';
     const cpu = statusData?.cpu_model || 'C++17 Engine';
     const threads = statusData?.hardware_concurrency || 8;
-    const mockBadge = isMock ? ' (MOCK)' : '';
+    const isCloud = (window.location.hostname || '').endsWith('github.io');
+    const label = isCloud ? 'PRODUCTION ONLINE' : 'C++17 ONLINE';
 
     chip.className = 'status-chip online';
-    chip.innerHTML = `<span class="chip-dot"></span> <span>C++17 ONLINE - ${cpu} - ${threads} threads${mockBadge}</span>`;
+    chip.innerHTML = `<span class="chip-dot"></span> <span>${label} &bull; ${cpu} (${threads} threads)</span>`;
+
+    if (footerEngine) {
+      const activeBase = API.getThermal3dBaseUrl();
+      footerEngine.textContent = `ENGINE: C++17 (${isCloud ? 'Render Web Service' : (activeBase || 'localhost:8080')})`;
+    }
   }
 
   // Reference Spec: Sheet Grow Animation out of active cover face
@@ -106,6 +136,21 @@ window.App = (function() {
       }
     }
     detailDialog.style.visibility = 'visible';
+
+    // Apply workspace layout modifier and contextual close label for 3D Thermal FEA
+    const closeBtn = document.querySelector('#btn-close-detail');
+    const topLeftExtra = document.querySelector('#detail-top-left-extra');
+    const topRight = document.querySelector('#detail-top-right');
+    if (topLeftExtra) topLeftExtra.innerHTML = '';
+    if (topRight) topRight.innerHTML = '';
+
+    if (moduleId === 'thermal3d') {
+      detailDialog.classList.add('is-thermal3d', 'is-selection');
+      if (closeBtn) closeBtn.textContent = 'BACK TO BOOKSHELF';
+    } else {
+      detailDialog.classList.remove('is-thermal3d', 'is-selection');
+      if (closeBtn) closeBtn.textContent = 'CLOSE';
+    }
 
     // Mount view content into dialog safely
     try {
@@ -234,6 +279,13 @@ window.App = (function() {
       }
       currentViewModule = null;
       detailContent.innerHTML = '';
+      detailDialog.classList.remove('is-thermal3d', 'is-selection');
+      const closeBtn = document.querySelector('#btn-close-detail');
+      if (closeBtn) closeBtn.textContent = 'CLOSE';
+      const topLeftExtra = document.querySelector('#detail-top-left-extra');
+      if (topLeftExtra) topLeftExtra.innerHTML = '';
+      const topRight = document.querySelector('#detail-top-right');
+      if (topRight) topRight.innerHTML = '';
     } finally {
       isSheetOpen = false;
       Shelf.setSheetOpen(false);

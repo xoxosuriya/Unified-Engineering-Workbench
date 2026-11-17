@@ -1,0 +1,47 @@
+name: CI - C++ Core & Linux Build Verification
+
+on:
+  push:
+    branches:
+      - main
+      - 'feature/**'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-and-test-linux:
+    name: Linux GCC Build & 53-Test Suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            cmake \
+            ninja-build \
+            libpthread-stubs0-dev
+
+      - name: Configure CMake (Release)
+        run: |
+          cmake -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_STANDARD=17 \
+            -DEIGEN_SOURCE_DIR=${{ github.workspace }}/third_party/eigen-3.4.0
+
+      - name: Build C++ Targets (Core, Server, Tests)
+        run: |
+          cmake --build build --target workbench_backend workbench_tests
+
+      - name: Run C++ Automated Test Suite (53 Tests)
+        run: |
+          cd build && ./workbench_tests
+
+      - name: Verify Docker Container Build
+        run: |
+          docker build -t uew-backend:ci .

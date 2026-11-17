@@ -37,6 +37,16 @@ $RECYCLE.BIN/
 *.tar.gz
 *.bundle
 
+# Third-party dependencies
+third_party/
+
 # Scratch testing scripts
 scratch/
 dist/
+node_modules/
+package.json
+package-lock.json
+tsconfig.json
+vite.config.ts
+src/frontend_backup_pre_ai_studio/
+

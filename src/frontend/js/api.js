@@ -12,21 +12,81 @@ window.API = (function() {
   let statusListeners = [];
   let pollIntervalId = null;
 
-  // Check URL query param ?mock=1
+  // Check URL query params (?mock=1, ?backend=https://... or ?apiBase=...)
   const urlParams = new URLSearchParams(window.location.search);
   const forceMock = urlParams.get('mock') === '1';
+  const backendOverrideParam = urlParams.get('backend') || urlParams.get('apiBase');
+  if (backendOverrideParam !== null) {
+    try {
+      window.localStorage.setItem('uew_thermal3d_base_url', backendOverrideParam.trim().replace(/\/+$/, ''));
+    } catch (e) {}
+  }
+
+  function getApiBaseUrl() {
+    // 1. Explicit query parameter override (?backend=... or ?apiBase=...)
+    if (backendOverrideParam && backendOverrideParam.trim()) {
+      return backendOverrideParam.trim().replace(/\/+$/, '');
+    }
+
+    // 2. localStorage cached base URL
+    try {
+      const stored = window.localStorage.getItem('uew_thermal3d_base_url');
+      if (stored !== null && stored.trim()) return stored.trim().replace(/\/+$/, '');
+    } catch (e) {}
+
+    // 3. Global window.WORKBENCH_API_BASE_URL
+    if (window.WORKBENCH_API_BASE_URL && window.WORKBENCH_API_BASE_URL.trim()) {
+      return window.WORKBENCH_API_BASE_URL.trim().replace(/\/+$/, '');
+    }
+
+    // 4. Localhost or desktop development
+    const hostname = window.location.hostname || '';
+    if (/^(localhost|127\.0\.0\.1)$/i.test(hostname)) {
+      if (window.location.port === '3000') {
+        // Vite dev server running on port 3000 -> target backend on 8080
+        return 'http://127.0.0.1:8080';
+      }
+      return '';
+    }
+
+    // 5. GitHub Pages production environment
+    if (hostname.endsWith('github.io')) {
+      return (window.CONFIG && CONFIG.productionApiUrl) ? CONFIG.productionApiUrl : 'https://unified-engineering-workbench-backend.onrender.com';
+    }
+
+    // 6. Config fallback
+    if (window.CONFIG && CONFIG.apiBase && CONFIG.apiBase.trim()) {
+      return CONFIG.apiBase.trim().replace(/\/+$/, '');
+    }
+    if (window.CONFIG && CONFIG.thermal3dApiBase && CONFIG.thermal3dApiBase.trim()) {
+      return CONFIG.thermal3dApiBase.trim().replace(/\/+$/, '');
+    }
+
+    return '';
+  }
+
+  function getExplicitBackendBase() {
+    return getApiBaseUrl();
+  }
 
   async function checkBackendAvailability() {
     if (forceMock) {
       setMockMode(true);
+      const mockStatus = await MockBackend.getStatus();
+      sessionToken = mockStatus.session_token;
+      activePort = mockStatus.active_port;
+      notifyStatus(mockStatus, true);
       return false;
     }
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), CONFIG.mockTimeoutMs || 800);
+    const timeout = setTimeout(() => controller.abort(), (window.CONFIG && CONFIG.mockTimeoutMs) || 1500);
+
+    const baseUrl = getApiBaseUrl();
+    const statusUrl = (baseUrl ? baseUrl : '') + '/api/status';
 
     try {
-      const res = await fetch('/api/status', {
+      const res = await fetch(statusUrl, {
         method: 'GET',
         headers: { 'Accept': 'application/json' },
         signal: controller.signal
@@ -44,11 +104,10 @@ window.API = (function() {
       // Failed or timed out
     }
     clearTimeout(timeout);
-    setMockMode(true);
-    const mockStatus = await MockBackend.getStatus();
-    sessionToken = mockStatus.session_token;
-    activePort = mockStatus.active_port;
-    notifyStatus(mockStatus, true);
+
+    // Truthful offline state: DO NOT silently switch to mock mode in production!
+    setMockMode(false);
+    notifyStatus(null, false);
     return false;
   }
 
@@ -61,12 +120,7 @@ window.API = (function() {
     }
   }
 
-  let lastStatusData = null;
-  let lastIsHealthy = false;
-
   function notifyStatus(statusData, isHealthy) {
-    lastStatusData = statusData;
-    lastIsHealthy = isHealthy;
     statusListeners.forEach(fn => fn(statusData, isHealthy, isMock));
   }
 
@@ -80,7 +134,10 @@ window.API = (function() {
       headers['X-Session-Token'] = sessionToken;
     }
 
-    const res = await fetch(endpoint, {
+    const explicitBase = getExplicitBackendBase();
+    const targetUrl = (explicitBase ? explicitBase : '') + endpoint;
+
+    const res = await fetch(targetUrl, {
       ...options,
       headers
     });
@@ -110,34 +167,28 @@ window.API = (function() {
   function startStatusPolling() {
     if (pollIntervalId) clearInterval(pollIntervalId);
     pollIntervalId = setInterval(async () => {
+      if (isMock) {
+        const st = await MockBackend.getStatus();
+        notifyStatus(st, true);
+        return;
+      }
+
       try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 2000);
         const res = await fetch('/api/status', {
-          headers: { 'Accept': 'application/json' },
-          signal: controller.signal
+          headers: { 'Accept': 'application/json' }
         });
-        clearTimeout(timeout);
         if (res.ok) {
           const st = await res.json();
           sessionToken = st.session_token || sessionToken;
           activePort = st.active_port || activePort;
-          if (isMock) {
-            setMockMode(false);
-          }
           notifyStatus(st, true);
-          return;
+        } else {
+          notifyStatus(null, false);
         }
       } catch (err) {
-        // Backend offline or unreachable
+        notifyStatus(null, false);
       }
-
-      if (!isMock) {
-        setMockMode(true);
-      }
-      const st = await MockBackend.getStatus();
-      notifyStatus(st, false);
-    }, CONFIG.statusPollIntervalMs || 2000);
+    }, CONFIG.statusPollIntervalMs || 5000);
   }
 
   return {
@@ -152,9 +203,6 @@ window.API = (function() {
 
     onStatusChange: function(fn) {
       statusListeners.push(fn);
-      if (lastStatusData !== null) {
-        try { fn(lastStatusData, lastIsHealthy, isMock); } catch (e) {}
-      }
     },
 
     getSessionToken: function() {
@@ -298,6 +346,132 @@ window.API = (function() {
     backpropStudy: async function() {
       if (isMock) return MockBackend.backpropStudy();
       return request('/api/backprop/study');
+    },
+
+    // =========================================================================
+    // 3D Thermal FEA Real C++17 REST Endpoints (No mock fabrication allowed)
+    // =========================================================================
+    getThermal3dBaseUrl: function() {
+      return getApiBaseUrl();
+    },
+
+    setThermal3dBaseUrl: function(url) {
+      const cleaned = (url || '').trim().replace(/\/+$/, '');
+      try {
+        window.localStorage.setItem('uew_thermal3d_base_url', cleaned);
+      } catch (e) {}
+      return cleaned;
+    },
+
+    resetThermal3dBaseUrl: function() {
+      try {
+        window.localStorage.removeItem('uew_thermal3d_base_url');
+      } catch (e) {}
+      return this.getThermal3dBaseUrl();
+    },
+
+    enableDemoMode: async function() {
+      setMockMode(true);
+      const mockStatus = await MockBackend.getStatus();
+      sessionToken = mockStatus.session_token;
+      activePort = mockStatus.active_port;
+      notifyStatus(mockStatus, true);
+      return mockStatus;
+    },
+
+    disableDemoMode: function() {
+      setMockMode(false);
+      return checkBackendAvailability();
+    },
+
+    thermal3dRequest: async function(path, options = {}) {
+      const base = this.getThermal3dBaseUrl();
+      const url = (base ? base : '') + path;
+      const timeoutMs = options.timeoutMs || 5000;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+      if (options.signal) {
+        if (options.signal.aborted) {
+          clearTimeout(timeoutId);
+          throw new DOMException('Aborted', 'AbortError');
+        }
+        options.signal.addEventListener('abort', () => controller.abort(), { once: true });
+      }
+
+      try {
+        const res = await fetch(url, {
+          method: options.method || 'GET',
+          headers: options.headers || { 'Accept': 'application/json' },
+          body: options.body,
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        const rawText = await res.text();
+        let parsed = null;
+        try {
+          parsed = rawText ? JSON.parse(rawText) : null;
+        } catch (parseErr) {
+          const invalidErr = new Error('Invalid JSON response from C++ backend');
+          invalidErr.code = 'INVALID_RESPONSE';
+          invalidErr.httpStatus = res.status;
+          invalidErr.rawText = rawText;
+          invalidErr.url = url;
+          throw invalidErr;
+        }
+
+        if (!res.ok) {
+          const errMsg = (parsed && (parsed.error_message || parsed.error || parsed.message)) || `HTTP ${res.status} ${res.statusText}`;
+          const httpErr = new Error(errMsg);
+          httpErr.code = res.status >= 400 ? 'HTTP_ERROR' : 'NETWORK_ERROR';
+          httpErr.httpStatus = res.status;
+          httpErr.data = parsed;
+          httpErr.rawText = rawText;
+          httpErr.url = url;
+          throw httpErr;
+        }
+
+        return { data: parsed, rawText: rawText, httpStatus: res.status, url: url };
+      } catch (err) {
+        clearTimeout(timeoutId);
+        if (err.name === 'AbortError' && (!options.signal || !options.signal.aborted)) {
+          const timeoutErr = new Error(`Backend request timed out (${timeoutMs} ms)`);
+          timeoutErr.code = 'OFFLINE';
+          timeoutErr.url = url;
+          throw timeoutErr;
+        }
+        if (!err.code && (err instanceof TypeError || /Failed to fetch|NetworkError|Load failed/i.test(err.message))) {
+          err.code = 'OFFLINE';
+          err.url = url;
+        }
+        throw err;
+      }
+    },
+
+    thermal3dHealth: function(signal) {
+      return this.thermal3dRequest('/api/thermal3d/health', { timeoutMs: 2500, signal });
+    },
+
+    thermal3dModels: function(signal) {
+      return this.thermal3dRequest('/api/thermal3d/models', { timeoutMs: 3000, signal });
+    },
+
+    thermal3dConfig: function(signal) {
+      return this.thermal3dRequest('/api/thermal3d/config', { timeoutMs: 3000, signal });
+    },
+
+    thermal3dSolve: function(payload, signal) {
+      return this.thermal3dRequest('/api/thermal3d/solve', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload),
+        timeoutMs: 60000,
+        signal: signal
+      });
     },
 
     // File Downloads (CSV Exports)

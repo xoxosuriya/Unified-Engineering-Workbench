@@ -6,14 +6,25 @@
 #include <chrono>
 #include <cmath>
 #include <filesystem>
+#include <csignal>
 #include "http_server.hpp"
 #include "thermal_fea_1d.hpp"
 #include "multicore_bench.hpp"
 #include "backprop_engine.hpp"
 #include "stl_parser.hpp"
 #include "ansys_parser.hpp"
+#include "comparative_benchmark_3d.hpp"
 
 using namespace workbench;
+
+static HttpServer* g_active_server = nullptr;
+
+static void handle_server_signal(int) {
+    if (g_active_server) {
+        std::cout << "\n[INFO] Received termination signal, shutting down server gracefully...\n";
+        g_active_server->stop();
+    }
+}
 
 void print_banner() {
     std::cout << "=================================================================\n";
@@ -27,6 +38,21 @@ int main(int argc, char* argv[]) {
     HttpServer::set_process_start_time(std::chrono::steady_clock::now());
     std::string mode = "server";
     int port = 8080;
+    std::string host = "127.0.0.1";
+
+    // Read environment variables for cloud runtime
+    const char* env_port = std::getenv("PORT");
+    if (env_port && *env_port) {
+        try {
+            port = std::stoi(env_port);
+            host = "0.0.0.0"; // Default to binding all interfaces when PORT is provided by cloud runtime
+        } catch (...) {}
+    }
+    const char* env_host = std::getenv("HOST");
+    if (env_host && *env_host) {
+        host = env_host;
+    }
+
     std::string web_dir = "src/frontend";
     std::string out_file;
     std::string out_dir;
@@ -48,6 +74,8 @@ int main(int argc, char* argv[]) {
             mode = "fea";
         } else if (arg == "--backprop") {
             mode = "backprop";
+        } else if (arg == "--bench3d") {
+            mode = "bench3d";
         } else if (arg == "--cases" && i + 1 < argc) {
             bench_cfg.case_count = std::stoull(argv[++i]);
         } else if (arg == "--mesh" && i + 1 < argc) {
@@ -62,6 +90,8 @@ int main(int argc, char* argv[]) {
             out_dir = argv[++i];
         } else if (arg == "--env-out" && i + 1 < argc) {
             env_out_file = argv[++i];
+        } else if (arg == "--host" && i + 1 < argc) {
+            host = argv[++i];
         } else if (arg == "--port" && i + 1 < argc) {
             port = std::stoi(argv[++i]);
         } else if (arg == "--web-dir" && i + 1 < argc) {
@@ -75,6 +105,7 @@ int main(int argc, char* argv[]) {
             std::cout << "  --fea                            Run 1D Thermal FEA convergence study\n";
             std::cout << "  --out-dir <dir>                  Directory to save FEA CSV files\n";
             std::cout << "  --bench                          Run multicore benchmark\n";
+            std::cout << "  --bench3d                        Run 3D thermal solver comparative benchmark (Cube & Finned Sink)\n";
             std::cout << "  --cases <N>                      Number of benchmark cases (default 20000)\n";
             std::cout << "  --mesh <M>                       Mesh size N for benchmark (default 200)\n";
             std::cout << "  --seed <S>                       Random seed for benchmark (default 42)\n";
@@ -165,18 +196,48 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
+    if (mode == "bench3d") {
+        print_banner();
+        std::cout << "[INFO] Starting 3D Thermal Solver Comparative Benchmark Pipeline...\n";
+        std::cout << "[INFO] Resolutions: N in {10, 20, 30} | Repeats: 5 measured runs + 1 warmup per case\n";
+        std::string target_dir = out_dir.empty() ? "results" : out_dir;
+
+        ComparativeBenchmarkSuite suite = run_comparative_benchmark_suite({10, 20, 30}, 5, true);
+
+        std::cout << "\n[INFO] Exporting benchmark artifacts to directory: " << target_dir << "\n";
+        bool export_ok = suite.export_all(target_dir);
+        if (export_ok) {
+            std::cout << "[SUCCESS] Comparative benchmark completed and exported successfully:\n"
+                      << "  - " << target_dir << "/benchmark_solvers_3d.csv\n"
+                      << "  - " << target_dir << "/benchmark_summary_3d.csv\n"
+                      << "  - " << target_dir << "/benchmark_sor_sweep_3d.csv\n"
+                      << "  - " << target_dir << "/benchmark_metadata_3d.json\n";
+        } else {
+            std::cerr << "[ERROR] Failed to export one or more benchmark files to " << target_dir << "\n";
+            return 1;
+        }
+        return 0;
+    }
+
     // Default: Start Server
     print_banner();
-    HttpServer server("127.0.0.1", port, web_dir);
+    HttpServer server(host, port, web_dir);
+    g_active_server = &server;
+    std::signal(SIGINT, handle_server_signal);
+    std::signal(SIGTERM, handle_server_signal);
+
     if (!server.start()) {
-        std::cerr << "[Error] Failed to start HTTP server." << std::endl;
+        std::cerr << "[Error] Failed to start HTTP server on " << host << ":" << port << std::endl;
+        g_active_server = nullptr;
         return 1;
     }
 
     std::cout << "\nWorkbench Core Backend running at: " << server.get_base_url() << "\n";
+    std::cout << "Listening on host: " << host << ", port: " << server.get_actual_port() << "\n";
     std::cout << "Press Enter or Ctrl+C to terminate server...\n";
 
     // Keep running
     server.wait();
+    g_active_server = nullptr;
     return 0;
 }
