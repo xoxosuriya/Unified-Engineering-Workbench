@@ -42,6 +42,7 @@ using socklen_t = int;
 #include <netdb.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <poll.h>
 using socket_t = int;
 #define WORKBENCH_INVALID_SOCKET (-1)
 #define WORKBENCH_SOCKET_ERROR (-1)
@@ -580,9 +581,31 @@ void HttpServer::stop() {
     if (!is_running_) return;
     is_running_ = false;
 
+    int port_to_unblock = actual_port_;
+
     if (listen_socket_ != 0 && listen_socket_ != static_cast<uintptr_t>(WORKBENCH_INVALID_SOCKET)) {
-        workbench_closesocket(static_cast<socket_t>(listen_socket_));
+        socket_t s = static_cast<socket_t>(listen_socket_);
+#if defined(_WIN32)
+        shutdown(s, SD_BOTH);
+        workbench_closesocket(s);
+#else
+        shutdown(s, SHUT_RDWR);
+        workbench_closesocket(s);
+#endif
         listen_socket_ = 0;
+    }
+
+    // Connect a quick unblock ping to wake accept/poll immediately if still waiting
+    if (port_to_unblock > 0) {
+        socket_t unblock_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+        if (unblock_sock != WORKBENCH_INVALID_SOCKET) {
+            sockaddr_in loopback_addr{};
+            loopback_addr.sin_family = AF_INET;
+            loopback_addr.sin_port = htons(static_cast<uint16_t>(port_to_unblock));
+            loopback_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+            connect(unblock_sock, reinterpret_cast<sockaddr*>(&loopback_addr), sizeof(loopback_addr));
+            workbench_closesocket(unblock_sock);
+        }
     }
 
     if (server_thread_.joinable()) {
@@ -605,7 +628,32 @@ void HttpServer::listen_loop() {
     socket_t server_fd = static_cast<socket_t>(listen_socket_);
 
     while (is_running_) {
-        sockaddr_in client_addr;
+#if defined(_WIN32)
+        fd_set read_fds;
+        FD_ZERO(&read_fds);
+        FD_SET(server_fd, &read_fds);
+        timeval tv{0, 50000}; // 50 ms
+        int sel_res = select(static_cast<int>(server_fd) + 1, &read_fds, nullptr, nullptr, &tv);
+        if (sel_res <= 0) {
+            continue;
+        }
+#else
+        struct pollfd pfd;
+        pfd.fd = server_fd;
+        pfd.events = POLLIN;
+        pfd.revents = 0;
+        int poll_res = poll(&pfd, 1, 50); // 50 ms timeout
+        if (poll_res <= 0) {
+            continue;
+        }
+        if (!(pfd.revents & POLLIN)) {
+            continue;
+        }
+#endif
+
+        if (!is_running_) break;
+
+        sockaddr_in client_addr{};
         socklen_t client_len = sizeof(client_addr);
         socket_t client_sock = accept(server_fd, reinterpret_cast<sockaddr*>(&client_addr), &client_len);
 
@@ -613,6 +661,11 @@ void HttpServer::listen_loop() {
             if (!is_running_) break;
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
             continue;
+        }
+
+        if (!is_running_) {
+            workbench_closesocket(client_sock);
+            break;
         }
 
         // Spawn detached client handler

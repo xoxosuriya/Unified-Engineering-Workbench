@@ -449,9 +449,24 @@ void test_parser_edge_cases() {
 // -------------------------------------------------------------
 // Helper HTTP clients for test suite
 // -------------------------------------------------------------
+static void set_socket_timeouts(test_socket_t s) {
+#if defined(_WIN32)
+    DWORD tv = 3000;
+    setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&tv), sizeof(tv));
+    setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<const char*>(&tv), sizeof(tv));
+#else
+    struct timeval tv;
+    tv.tv_sec = 3;
+    tv.tv_usec = 0;
+    setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+    setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+#endif
+}
+
 static std::string http_get_sync(const std::string& host, int port, const std::string& path) {
     test_socket_t s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (s == TEST_INVALID_SOCKET) return "";
+    set_socket_timeouts(s);
     sockaddr_in addr;
     std::memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
@@ -476,6 +491,7 @@ static std::string http_get_sync(const std::string& host, int port, const std::s
 static std::string http_post_sync(const std::string& host, int port, const std::string& path, const std::string& body, const std::string& extra_headers = "") {
     test_socket_t s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (s == TEST_INVALID_SOCKET) return "";
+    set_socket_timeouts(s);
     sockaddr_in addr;
     std::memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
@@ -504,6 +520,7 @@ static std::string http_post_sync(const std::string& host, int port, const std::
 static std::string http_custom_req_sync(const std::string& method, const std::string& host, int port, const std::string& path, const std::string& body, const std::string& extra_headers = "") {
     test_socket_t s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (s == TEST_INVALID_SOCKET) return "";
+    set_socket_timeouts(s);
     sockaddr_in addr;
     std::memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;

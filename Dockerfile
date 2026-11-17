@@ -33,8 +33,8 @@ RUN cmake -B build \
     -DCMAKE_CXX_STANDARD=17 \
     && cmake --build build --target workbench_backend workbench_tests -j$(nproc)
 
-# Run automated C++ test suite (all 53 tests must pass during build)
-RUN ./build/workbench_tests
+# Run automated C++ test suite with bounded timeout (all 53 tests must pass during build)
+RUN timeout 120s ./build/workbench_tests
 
 # -------------------------------------------------------------------------
 # STAGE 2: Minimal Production Runtime
