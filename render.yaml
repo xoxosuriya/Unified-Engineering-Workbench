@@ -23,5 +23,6 @@ services:
       - key: DISABLE_SHUTDOWN
         value: "1"
       - key: ALLOWED_ORIGINS
-        value: https://xoxosuriya.github.io,http://localhost:3000,http://127.0.0.1:3000,http://localhost:8080,http://127.0.0.1:8080
+        value: https://unified-engineering-workbench-indol.vercel.app,https://unified-engineering-workbench.vercel.app,https://xoxosuriya.github.io,http://localhost:3000,http://127.0.0.1:3000,http://localhost:8080,http://127.0.0.1:8080
     healthCheckPath: /api/thermal3d/health
+

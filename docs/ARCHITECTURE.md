@@ -107,3 +107,4 @@ This yields a symmetric, strictly diagonally dominant, positive-definite linear 
 * Direct component-wise forward substitution:
   $$T_i^{(k+1)} = (1 - \omega) T_i^{(k)} + \frac{\omega}{A_{i,i}} \left( b_i - \sum_{j < i} A_{i,j} T_j^{(k+1)} - \sum_{j > i} A_{i,j} T_j^{(k)} \right)$$
 * Optimal relaxation parameter $\omega^* = 1.70$ validated against David Young's theoretical optimum $\omega_{\text{opt}} \approx 1.695$.
+

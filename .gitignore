@@ -25,7 +25,13 @@ Desktop.ini
 $RECYCLE.BIN/
 .DS_Store
 
-# Temporary editor backups
+# Compiled binaries
+workbench_backend.exe
+workbench_tests.exe
+
+# Local report drafts & outputs
+docs/reports/
+
 *~
 *.swp
 *.bak

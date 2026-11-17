@@ -53,3 +53,4 @@ All notable changes to the Unified Engineering Workbench are documented in this 
 - Analytical backpropagation engine with central finite-difference gradient verification.
 - Windows desktop double-clickable launcher (`Launch.exe`) with WinSock2 local server.
 - Initial 23-test automated C++ test suite.
+

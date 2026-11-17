@@ -94,3 +94,4 @@ The test runner (`tests/test_runner.cpp`) is partitioned into six verification t
 
 ### Continuous Integration (GitHub Actions):
 The automated test suite runs on every pull request and push to `main` across Linux container runners in `.github/workflows/ci.yml`.
+

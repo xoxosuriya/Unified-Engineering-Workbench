@@ -46,25 +46,35 @@ include_directories(
 # =========================================================================
 include(FetchContent)
 
-# Documented offline fallback options:
-# 1. User-specified CMake cache variable: -DEIGEN_SOURCE_DIR=<path>
-# 2. Local vendor directory: ${CMAKE_CURRENT_SOURCE_DIR}/third_party/eigen-3.4.0
-# 3. Upstream Git repository tagged release 3.4.0 (commit 3147391d946bb4b6c68edd901f2add6ac1f31f8c)
+# Documented fallback options:
+# 1. System-installed Eigen3 package or /usr/include/eigen3 (e.g. Debian/Ubuntu libeigen3-dev)
+# 2. User-specified CMake cache variable: -DEIGEN_SOURCE_DIR=<path>
+# 3. Local vendor directory: ${CMAKE_CURRENT_SOURCE_DIR}/third_party/eigen-3.4.0
+# 4. Upstream Git repository tagged release 3.4.0
 
-set(EIGEN_SOURCE_DIR "" CACHE PATH "Path to local Eigen source directory (offline fallback)")
+find_package(Eigen3 3.3 QUIET CONFIG)
 
-if(EIGEN_SOURCE_DIR AND EXISTS "${EIGEN_SOURCE_DIR}/Eigen/Dense")
+if(TARGET Eigen3::Eigen)
+    message(STATUS "Eigen 3.4.0: Found system Eigen3 package: ${Eigen3_VERSION}")
+elseif(EXISTS "/usr/include/eigen3/Eigen/Dense")
+    message(STATUS "Eigen 3.4.0: Using system path /usr/include/eigen3")
+    add_library(Eigen3::Eigen INTERFACE IMPORTED)
+    target_include_directories(Eigen3::Eigen INTERFACE /usr/include/eigen3)
+    include_directories(/usr/include/eigen3)
+elseif(EIGEN_SOURCE_DIR AND EXISTS "${EIGEN_SOURCE_DIR}/Eigen/Dense")
     message(STATUS "Eigen 3.4.0: Using offline path via EIGEN_SOURCE_DIR: ${EIGEN_SOURCE_DIR}")
     FetchContent_Declare(
         Eigen3
         SOURCE_DIR "${EIGEN_SOURCE_DIR}"
     )
+    FetchContent_MakeAvailable(Eigen3)
 elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/third_party/eigen-3.4.0/Eigen/Dense")
     message(STATUS "Eigen 3.4.0: Using offline bundled path: ${CMAKE_CURRENT_SOURCE_DIR}/third_party/eigen-3.4.0")
     FetchContent_Declare(
         Eigen3
         SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/eigen-3.4.0"
     )
+    FetchContent_MakeAvailable(Eigen3)
 else()
     message(STATUS "Eigen 3.4.0: Fetching upstream from Git tag 3.4.0...")
     FetchContent_Declare(
@@ -73,14 +83,8 @@ else()
         GIT_TAG 3.4.0
         GIT_SHALLOW TRUE
     )
+    FetchContent_MakeAvailable(Eigen3)
 endif()
-
-# Header-only library: disable upstream tests, documentation and pkg-config
-set(EIGEN_BUILD_DOC OFF CACHE BOOL "" FORCE)
-set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
-set(EIGEN_BUILD_PKGCONFIG OFF CACHE BOOL "" FORCE)
-
-FetchContent_MakeAvailable(Eigen3)
 
 # Core Backend Sources
 set(WORKBENCH_CORE_SOURCES

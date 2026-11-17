@@ -16,13 +16,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     cmake \
     git \
     ca-certificates \
+    libeigen3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 # Copy dependency configuration and source trees
 COPY CMakeLists.txt ./
-COPY third_party ./third_party
 COPY src ./src
 COPY tests ./tests
 COPY data ./data
@@ -31,7 +31,6 @@ COPY data ./data
 RUN cmake -B build \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_CXX_STANDARD=17 \
-    -DEIGEN_SOURCE_DIR=/app/third_party/eigen-3.4.0 \
     && cmake --build build --target workbench_backend workbench_tests -j$(nproc)
 
 # Run automated C++ test suite (all 53 tests must pass during build)

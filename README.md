@@ -20,9 +20,9 @@
 | **Personal Email** | sp2742006@gmail.com |
 | **Assessment** | PASS Science Works R&D Internship Assessment (Unified Round 1 & Round 2) |
 | **GitHub Repository** | [https://github.com/xoxosuriya/Unified-Engineering-Workbench](https://github.com/xoxosuriya/Unified-Engineering-Workbench) |
-| **Live Web Application** | [https://xoxosuriya.github.io/Unified-Engineering-Workbench/](https://xoxosuriya.github.io/Unified-Engineering-Workbench/) |
+| **Live Web Application** | [https://unified-engineering-workbench-indol.vercel.app](https://unified-engineering-workbench-indol.vercel.app) |
 | **Production Cloud Backend** | [https://unified-engineering-workbench-backend.onrender.com/api/health](https://unified-engineering-workbench-backend.onrender.com/api/health) |
-| **Round 2 Technical Report** | [`docs/reports/round-2/RA2311047010144_Suriya_Prakash_S_PASS_RnD_Technical_Report.pdf`](./docs/reports/round-2/RA2311047010144_Suriya_Prakash_S_PASS_RnD_Technical_Report.pdf) |
+| **Round 2 Technical Report** | *Under review (post-deployment verification)* |
 | **Round 1 Technical Report** | [`RA2311047010144_Workbench_Report.pdf`](./RA2311047010144_Workbench_Report.pdf) *(Preserved Historical Deliverable)* |
 
 ---
@@ -169,7 +169,7 @@ The unified test suite combines **Round 1 unit, numerical, and integration tests
 ## 6. Quick Start & Execution Guide
 
 ### Option A: Cloud Web Application (Zero Installation)
-- Open the live web application: [https://xoxosuriya.github.io/Unified-Engineering-Workbench/](https://xoxosuriya.github.io/Unified-Engineering-Workbench/)
+- Open the live web application: [https://unified-engineering-workbench-indol.vercel.app](https://unified-engineering-workbench-indol.vercel.app)
 - The interface automatically connects to the live production backend hosted on Render.
 - If the free-tier backend is cold-starting, the status chip reflects `CONNECTING` and offers a one-click toggle to **Synthetic Demo Mode**.
 

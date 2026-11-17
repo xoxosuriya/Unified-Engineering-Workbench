@@ -153,3 +153,4 @@
 * `GET /api/hardware/telemetry`: Stream live 10 Hz telemetry telemetry frame.
 * `GET /api/backprop/study`: Execute 100-step training loss optimization & finite difference verification.
 * `POST /api/shutdown`: Administrative desktop process shutdown (`X-Session-Token` required; disabled in cloud).
+

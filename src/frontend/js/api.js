@@ -49,8 +49,8 @@ window.API = (function() {
       return '';
     }
 
-    // 5. GitHub Pages production environment
-    if (hostname.endsWith('github.io')) {
+    // 5. Cloud production environment (Vercel or GitHub Pages)
+    if (hostname.endsWith('vercel.app') || hostname.endsWith('github.io')) {
       return (window.CONFIG && CONFIG.productionApiUrl) ? CONFIG.productionApiUrl : 'https://unified-engineering-workbench-backend.onrender.com';
     }
 

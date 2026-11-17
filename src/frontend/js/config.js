@@ -21,7 +21,7 @@ window.CONFIG = {
   thermal3dApiBase: '',
   productionApiUrl: 'https://unified-engineering-workbench-backend.onrender.com',
   githubRepoUrl: 'https://github.com/xoxosuriya/Unified-Engineering-Workbench',
-  liveAppUrl: 'https://xoxosuriya.github.io/Unified-Engineering-Workbench/',
+  liveAppUrl: 'https://unified-engineering-workbench-indol.vercel.app/',
   statusPollIntervalMs: 5000,
   mockTimeoutMs: 1200,
   
