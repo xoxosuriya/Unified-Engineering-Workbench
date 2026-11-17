@@ -34,7 +34,7 @@ RUN cmake -B build \
     && cmake --build build --target workbench_backend workbench_tests -j$(nproc)
 
 # Run automated C++ test suite (all 53 tests must pass during build)
-RUN cd build && ./workbench_tests
+RUN ./build/workbench_tests
 
 # -------------------------------------------------------------------------
 # STAGE 2: Minimal Production Runtime

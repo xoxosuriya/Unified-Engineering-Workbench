@@ -293,9 +293,16 @@ void test_backpropagation_gradient_check() {
 // -------------------------------------------------------------
 // 7. Disk Samples & Provenance Verification Tests
 // -------------------------------------------------------------
+static std::string resolve_test_data_path(const std::string& rel_path) {
+    if (std::filesystem::exists(rel_path)) return rel_path;
+    if (std::filesystem::exists("../" + rel_path)) return "../" + rel_path;
+    if (std::filesystem::exists("../../" + rel_path)) return "../../" + rel_path;
+    return rel_path;
+}
+
 void test_disk_files_sample_bracket_and_ansys() {
     // Parse the actual sample_bracket.stl from disk
-    StlParseResult stl_res = StlParser::parse_file("data/sample_bracket.stl");
+    StlParseResult stl_res = StlParser::parse_file(resolve_test_data_path("data/sample_bracket.stl"));
     TEST_ASSERT(stl_res.success, "sample_bracket.stl must parse successfully: " + stl_res.error_message);
     TEST_ASSERT(stl_res.facet_count == 32, "sample_bracket.stl has exactly 32 facets");
     TEST_ASSERT(std::abs(stl_res.surface_area - 0.046297) < 1e-4, "Surface area must match 0.0463 m^2");
@@ -304,7 +311,7 @@ void test_disk_files_sample_bracket_and_ansys() {
     TEST_ASSERT(std::abs(stl_res.max_bound.z - 0.10) < 1e-3, "Max Z bound is 0.10 m (100 mm)");
 
     // Parse the actual ansys_thermal_synthetic.csv from disk
-    AnsysParseResult ansys_res = AnsysParser::parse_file("data/ansys_thermal_synthetic.csv");
+    AnsysParseResult ansys_res = AnsysParser::parse_file(resolve_test_data_path("data/ansys_thermal_synthetic.csv"));
     TEST_ASSERT(ansys_res.success, "ansys_thermal_synthetic.csv must parse successfully: " + ansys_res.error_message);
     TEST_ASSERT(ansys_res.node_count == 3485, "Must contain exactly 3,485 nodes");
     TEST_ASSERT(std::abs(ansys_res.min_temp_C - 36.87) < 0.1, "Min temp must be approx 36.87 C");
@@ -314,14 +321,14 @@ void test_disk_files_sample_bracket_and_ansys() {
 
 void test_disk_test_samples() {
     // Test negative STL specimens on disk
-    TEST_ASSERT(!StlParser::parse_file("data/test_samples/empty.stl").success, "empty.stl must be rejected");
-    TEST_ASSERT(!StlParser::parse_file("data/test_samples/corrupted_syntax.stl").success, "corrupted_syntax.stl must be rejected");
-    TEST_ASSERT(!StlParser::parse_file("data/test_samples/nan_coords.stl").success, "nan_coords.stl must be rejected");
+    TEST_ASSERT(!StlParser::parse_file(resolve_test_data_path("data/test_samples/empty.stl")).success, "empty.stl must be rejected");
+    TEST_ASSERT(!StlParser::parse_file(resolve_test_data_path("data/test_samples/corrupted_syntax.stl")).success, "corrupted_syntax.stl must be rejected");
+    TEST_ASSERT(!StlParser::parse_file(resolve_test_data_path("data/test_samples/nan_coords.stl")).success, "nan_coords.stl must be rejected");
 
     // Test negative CSV specimens on disk
-    TEST_ASSERT(!AnsysParser::parse_file("data/test_samples/empty.csv").success, "empty.csv must be rejected");
-    TEST_ASSERT(!AnsysParser::parse_file("data/test_samples/missing_columns.csv").success, "missing_columns.csv must be rejected");
-    TEST_ASSERT(!AnsysParser::parse_file("data/test_samples/sub_absolute_zero.csv").success, "sub_absolute_zero.csv must be rejected");
+    TEST_ASSERT(!AnsysParser::parse_file(resolve_test_data_path("data/test_samples/empty.csv")).success, "empty.csv must be rejected");
+    TEST_ASSERT(!AnsysParser::parse_file(resolve_test_data_path("data/test_samples/missing_columns.csv")).success, "missing_columns.csv must be rejected");
+    TEST_ASSERT(!AnsysParser::parse_file(resolve_test_data_path("data/test_samples/sub_absolute_zero.csv")).success, "sub_absolute_zero.csv must be rejected");
 }
 
 // -------------------------------------------------------------

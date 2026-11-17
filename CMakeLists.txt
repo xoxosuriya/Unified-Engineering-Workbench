@@ -156,6 +156,10 @@ add_executable(workbench_tests
 target_compile_definitions(workbench_tests PRIVATE WORKBENCH_ENABLE_TEST_HOOKS=1)
 target_link_libraries(workbench_tests PRIVATE workbench_core_testing)
 add_test(NAME AllWorkbenchTests COMMAND workbench_tests)
+set_tests_properties(AllWorkbenchTests PROPERTIES WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+
+# Copy data directory into build directory for test accessibility across all working directories
+file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/data" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}")
 
 # Install / Packaging Configuration
 if(WIN32)
