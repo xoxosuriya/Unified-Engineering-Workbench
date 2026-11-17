@@ -10,8 +10,9 @@ services:
     runtime: docker
     plan: free
     region: oregon
-    branch: main
-    dockerfilePath: ./Dockerfile
+    branch: feature/round-2-fullstack-integration
+    dockerContext: .
+    dockerfilePath: Dockerfile
     autoDeploy: true
     envVars:
       - key: PORT
