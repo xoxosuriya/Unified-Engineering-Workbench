@@ -1,0 +1,16 @@
+.git
+.github
+.vscode
+build/
+scratch/
+results/
+docs/reports/
+*.pdf
+*.exe
+*.o
+*.a
+*.log
+node_modules/
+.DS_Store
+Thumbs.db
+

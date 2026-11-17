@@ -256,6 +256,138 @@ window.Art = (function() {
           `;
         }
 
+      case 'thermal3d':
+        // Isometric finned heat sink with cobalt -> ivory -> vermilion thermal gradient
+        if (isCover) {
+          return `
+            <g transform="translate(237, 495)">
+              <!-- Backdrop calibration frame -->
+              <rect x="-165" y="-155" width="330" height="310" fill="#E8E1D0" stroke="#141414" stroke-width="1.5" />
+              
+              <!-- Isometric Axes Indicator (bottom left) -->
+              <g transform="translate(-135, 118)">
+                <line x1="0" y1="0" x2="26" y2="-13" stroke="#141414" stroke-width="1.4" />
+                <line x1="0" y1="0" x2="-26" y2="-13" stroke="#141414" stroke-width="1.4" />
+                <line x1="0" y1="0" x2="0" y2="-28" stroke="#1F3FB0" stroke-width="1.6" />
+                <text x="30" y="-12" font-family="'Inter Tight', sans-serif" font-weight="700" font-size="8" fill="#141414">X</text>
+                <text x="-35" y="-12" font-family="'Inter Tight', sans-serif" font-weight="700" font-size="8" fill="#141414">Z</text>
+                <text x="-3" y="-33" font-family="'Inter Tight', sans-serif" font-weight="700" font-size="8" fill="#1F3FB0">Y</text>
+              </g>
+
+              <!-- Heat Sink Isometric Assembly (Baseplate + 4 Vertical Fins) -->
+              <g transform="translate(0, 12)">
+                <!-- Heated Bottom Substrate Shadow / Flux Arrows -->
+                <path d="M-75,92 v-14 M-25,112 v-14 M25,92 v-14 M75,70 v-14" stroke="#E0452B" stroke-width="2" />
+                <polygon points="-78,78 -75,72 -72,78" fill="#E0452B" />
+                <polygon points="-28,98 -25,92 -22,98" fill="#E0452B" />
+                <polygon points="22,78 25,72 28,78" fill="#E0452B" />
+                <polygon points="72,56 75,50 78,56" fill="#E0452B" />
+
+                <!-- Baseplate Left Front Face (Vermilion Hot Zone) -->
+                <polygon points="-110,22 10,82 10,104 -110,44" fill="#E0452B" stroke="#141414" stroke-width="2.2" stroke-linejoin="round" />
+                <!-- Baseplate Right Side Face (Deep Charcoal / Dark Vermilion) -->
+                <polygon points="10,82 110,32 110,54 10,104" fill="#141414" stroke="#141414" stroke-width="2.2" stroke-linejoin="round" />
+                <!-- Baseplate Top Deck (Ivory / Warm Transition) -->
+                <polygon points="-110,22 -10,-28 110,32 10,82" fill="#F4F2ED" stroke="#141414" stroke-width="2.2" stroke-linejoin="round" />
+
+                <!-- Finite-volume baseplate mesh ticks -->
+                <line x1="-80" y1="37" x2="-80" y2="59" stroke="#141414" stroke-width="1" opacity="0.7" />
+                <line x1="-50" y1="52" x2="-50" y2="74" stroke="#141414" stroke-width="1" opacity="0.7" />
+                <line x1="-20" y1="67" x2="-20" y2="89" stroke="#141414" stroke-width="1" opacity="0.7" />
+
+                <!-- 4 Vertical Cooling Fins (back to front order for isometric occlusion) -->
+                <!-- Fin 4 (Back) -->
+                <g transform="translate(57, -28)">
+                  <!-- Thermal gradient bands on front face: bottom vermilion -> mid ivory -> top cobalt -->
+                  <polygon points="-64,32 -50,39 -50,15 -64,8" fill="#E0452B" stroke="#141414" stroke-width="1.6" />
+                  <polygon points="-64,8 -50,15 -50,-13 -64,-20" fill="#E8E1D0" stroke="#141414" stroke-width="1.6" />
+                  <polygon points="-64,-20 -50,-13 -50,-43 -64,-50" fill="#1F3FB0" stroke="#141414" stroke-width="1.6" />
+                  <!-- Right side face -->
+                  <polygon points="-50,39 46,-9 46,-33 -50,15" fill="#E0452B" stroke="#141414" stroke-width="1.6" />
+                  <polygon points="-50,15 46,-33 46,-61 -50,-13" fill="#F4F2ED" stroke="#141414" stroke-width="1.6" />
+                  <polygon points="-50,-13 46,-61 46,-91 -50,-43" fill="#1F3FB0" stroke="#141414" stroke-width="1.6" />
+                  <!-- Top cap (Cobalt Cooled Tip) -->
+                  <polygon points="-64,-50 32,-98 46,-91 -50,-43" fill="#1F3FB0" stroke="#141414" stroke-width="1.8" />
+                </g>
+
+                <!-- Fin 3 -->
+                <g transform="translate(31, -15)">
+                  <polygon points="-64,32 -50,39 -50,15 -64,8" fill="#E0452B" stroke="#141414" stroke-width="1.6" />
+                  <polygon points="-64,8 -50,15 -50,-13 -64,-20" fill="#E8E1D0" stroke="#141414" stroke-width="1.6" />
+                  <polygon points="-64,-20 -50,-13 -50,-43 -64,-50" fill="#1F3FB0" stroke="#141414" stroke-width="1.6" />
+                  <polygon points="-50,39 46,-9 46,-33 -50,15" fill="#E0452B" stroke="#141414" stroke-width="1.6" />
+                  <polygon points="-50,15 46,-33 46,-61 -50,-13" fill="#F4F2ED" stroke="#141414" stroke-width="1.6" />
+                  <polygon points="-50,-13 46,-61 46,-91 -50,-43" fill="#1F3FB0" stroke="#141414" stroke-width="1.6" />
+                  <polygon points="-64,-50 32,-98 46,-91 -50,-43" fill="#1F3FB0" stroke="#141414" stroke-width="1.8" />
+                </g>
+
+                <!-- Fin 2 -->
+                <g transform="translate(5, -2)">
+                  <polygon points="-64,32 -50,39 -50,15 -64,8" fill="#E0452B" stroke="#141414" stroke-width="1.6" />
+                  <polygon points="-64,8 -50,15 -50,-13 -64,-20" fill="#E8E1D0" stroke="#141414" stroke-width="1.6" />
+                  <polygon points="-64,-20 -50,-13 -50,-43 -64,-50" fill="#1F3FB0" stroke="#141414" stroke-width="1.6" />
+                  <polygon points="-50,39 46,-9 46,-33 -50,15" fill="#E0452B" stroke="#141414" stroke-width="1.6" />
+                  <polygon points="-50,15 46,-33 46,-61 -50,-13" fill="#F4F2ED" stroke="#141414" stroke-width="1.6" />
+                  <polygon points="-50,-13 46,-61 46,-91 -50,-43" fill="#1F3FB0" stroke="#141414" stroke-width="1.6" />
+                  <polygon points="-64,-50 32,-98 46,-91 -50,-43" fill="#1F3FB0" stroke="#141414" stroke-width="1.8" />
+                </g>
+
+                <!-- Fin 1 (Front) with cell subdivisions -->
+                <g transform="translate(-21, 11)">
+                  <polygon points="-64,32 -50,39 -50,15 -64,8" fill="#E0452B" stroke="#141414" stroke-width="1.8" />
+                  <polygon points="-64,8 -50,15 -50,-13 -64,-20" fill="#E8E1D0" stroke="#141414" stroke-width="1.8" />
+                  <polygon points="-64,-20 -50,-13 -50,-43 -64,-50" fill="#1F3FB0" stroke="#141414" stroke-width="1.8" />
+                  <polygon points="-50,39 46,-9 46,-33 -50,15" fill="#E0452B" stroke="#141414" stroke-width="1.8" />
+                  <polygon points="-50,15 46,-33 46,-61 -50,-13" fill="#F4F2ED" stroke="#141414" stroke-width="1.8" />
+                  <polygon points="-50,-13 46,-61 46,-91 -50,-43" fill="#1F3FB0" stroke="#141414" stroke-width="1.8" />
+                  <polygon points="-64,-50 32,-98 46,-91 -50,-43" fill="#1F3FB0" stroke="#141414" stroke-width="1.8" />
+                  <!-- Cell grid vertical ticks on frontmost fin -->
+                  <line x1="-18" y1="23" x2="-18" y2="-59" stroke="#141414" stroke-width="0.9" stroke-dasharray="3,2" />
+                  <line x1="14" y1="7" x2="14" y2="-75" stroke="#141414" stroke-width="0.9" stroke-dasharray="3,2" />
+                </g>
+              </g>
+
+              <!-- Compact Duotone Thermal Scale Bar (top right inside illustration) -->
+              <g transform="translate(120, -135)">
+                <rect x="0" y="0" width="14" height="24" fill="#E0452B" stroke="#141414" stroke-width="1.2" />
+                <rect x="0" y="24" width="14" height="24" fill="#F4F2ED" stroke="#141414" stroke-width="1.2" />
+                <rect x="0" y="48" width="14" height="24" fill="#1F3FB0" stroke="#141414" stroke-width="1.2" />
+                <text x="20" y="10" font-family="'Inter Tight', sans-serif" font-weight="700" font-size="8" fill="#E0452B">Tmax</text>
+                <text x="20" y="70" font-family="'Inter Tight', sans-serif" font-weight="700" font-size="8" fill="#1F3FB0">Tmin</text>
+              </g>
+            </g>
+          `;
+        } else {
+          return `
+            <g transform="translate(71, 108)">
+              <!-- Compact isometric finned sink on spine -->
+              <polygon points="-44,16 4,40 4,50 -44,26" fill="#E0452B" stroke="#141414" stroke-width="1.4" />
+              <polygon points="4,40 44,20 44,30 4,50" fill="#141414" stroke="#141414" stroke-width="1.4" />
+              <polygon points="-44,16 -4,-4 44,20 4,40" fill="#F4F2ED" stroke="#141414" stroke-width="1.4" />
+              <!-- 4 fins -->
+              <g transform="translate(22, -10)">
+                <rect x="-24" y="-34" width="7" height="20" transform="skewY(-26)" fill="#1F3FB0" stroke="#141414" stroke-width="1.1" />
+              </g>
+              <g transform="translate(11, -4)">
+                <polygon points="-24,0 -17,3 -17,-30 -24,-33" fill="#1F3FB0" stroke="#141414" stroke-width="1.1" />
+                <polygon points="-17,3 20,-15 20,-48 -17,-30" fill="#1F3FB0" stroke="#141414" stroke-width="1.1" />
+              </g>
+              <g transform="translate(-1, 2)">
+                <polygon points="-24,0 -17,3 -17,-30 -24,-33" fill="#E8E1D0" stroke="#141414" stroke-width="1.1" />
+                <polygon points="-17,3 20,-15 20,-48 -17,-30" fill="#1F3FB0" stroke="#141414" stroke-width="1.1" />
+                <polygon points="-17,3 20,-15 20,-28 -17,-10" fill="#E0452B" stroke="#141414" stroke-width="1.1" />
+              </g>
+              <g transform="translate(-13, 8)">
+                <polygon points="-24,0 -17,3 -17,-14 -24,-17" fill="#E0452B" stroke="#141414" stroke-width="1.2" />
+                <polygon points="-24,-17 -17,-14 -17,-33 -24,-36" fill="#1F3FB0" stroke="#141414" stroke-width="1.2" />
+                <polygon points="-17,3 20,-15 20,-28 -17,-10" fill="#E0452B" stroke="#141414" stroke-width="1.2" />
+                <polygon points="-17,-10 20,-28 20,-48 -17,-30" fill="#1F3FB0" stroke="#141414" stroke-width="1.2" />
+                <polygon points="-24,-36 13,-54 20,-48 -17,-30" fill="#1F3FB0" stroke="#141414" stroke-width="1.2" />
+              </g>
+            </g>
+          `;
+        }
+
       default:
         return '';
     }
@@ -265,7 +397,8 @@ window.Art = (function() {
     // Generate Spine SVG (viewBox 0 0 142 840)
     renderSpineSvg: function(module) {
       const motifSvg = renderMotif(module.motif, false);
-      const title = module.title.toUpperCase();
+      const title = (module.spineTitle || module.title).toUpperCase();
+      const titleFontSize = title.length > 15 ? 24 : 28;
       
       return `
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 142 840" width="100%" height="100%">
@@ -282,15 +415,15 @@ window.Art = (function() {
 
           <!-- Japanese gloss under motif if enabled -->
           ${CONFIG.showKanji && module.romaji ? `
-            <text x="71" y="178" font-family="'Inter Tight', 'Yu Gothic UI', sans-serif" font-weight="700" font-size="12" letter-spacing="0.1em" text-anchor="middle" fill="#1F3FB0">
+            <text x="71" y="178" font-family="'Inter Tight', sans-serif" font-weight="700" font-size="12" letter-spacing="0.1em" text-anchor="middle" fill="#1F3FB0">
               ${module.romaji}
             </text>
           ` : ''}
 
           <!-- Vertical Condensed Serif Title -->
           <!-- We write vertical text centered down the tape spine -->
-          <g transform="translate(71, 230)">
-            <text x="0" y="0" transform="rotate(90)" font-family="'Newsreader', Georgia, serif" font-weight="600" font-size="28" letter-spacing="0.08em" fill="#141414" dominant-baseline="central">
+          <g transform="translate(71, 224)">
+            <text x="0" y="0" transform="rotate(90)" font-family="'Newsreader', Georgia, serif" font-weight="600" font-size="${titleFontSize}" letter-spacing="0.08em" fill="#141414" dominant-baseline="central">
               ${title}
             </text>
           </g>

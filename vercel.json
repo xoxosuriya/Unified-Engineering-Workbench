@@ -1,0 +1,7 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "name": "unified-engineering-workbench",
+  "cleanUrls": true,
+  "outputDirectory": "src/frontend"
+}
+

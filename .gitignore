@@ -25,7 +25,13 @@ Desktop.ini
 $RECYCLE.BIN/
 .DS_Store
 
-# Temporary editor backups
+# Compiled binaries
+workbench_backend.exe
+workbench_tests.exe
+
+# Local report drafts & outputs
+docs/reports/
+
 *~
 *.swp
 *.bak
@@ -37,6 +43,16 @@ $RECYCLE.BIN/
 *.tar.gz
 *.bundle
 
+# Third-party dependencies
+third_party/
+
 # Scratch testing scripts
 scratch/
 dist/
+node_modules/
+package.json
+package-lock.json
+tsconfig.json
+vite.config.ts
+src/frontend_backup_pre_ai_studio/
+

@@ -1,0 +1,19 @@
+{
+  "benchmark_suite": "Round 2 Phase 2D Comparative Benchmarking",
+  "timestamp": "Nov 15 2026 18:50:59",
+  "compiler": "GNU 16.2.0",
+  "optimization_flags": "-O3 -DNDEBUG -O3",
+  "working_set_bytes": 7188480,
+  "validation": {
+    "max_pairwise_solution_difference_C": 3.07144e-05,
+    "pairwise_tolerance_C": 1e-4,
+    "pairwise_agreement_passed": true,
+    "cube_analytical_error_N20_C": 0.00312623,
+    "cube_analytical_tolerance_C": 0.05,
+    "cube_analytical_passed": true,
+    "finned_energy_balance_rel_err_N30": 2.22741e-08,
+    "finned_energy_tolerance": 0.001,
+    "finned_energy_balance_passed": true,
+    "all_finite_measurements": true
+  }
+}

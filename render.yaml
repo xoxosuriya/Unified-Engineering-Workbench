@@ -1,0 +1,29 @@
+# =========================================================================
+# Render Blueprint Specification
+# Service: Unified Engineering Workbench Portable C++17 Backend
+# Candidate: Suriya Prakash S (RA2311047010144) - PASS Science Works R&D
+# =========================================================================
+
+services:
+  - type: web
+    name: unified-engineering-workbench-backend
+    runtime: docker
+    plan: free
+    region: oregon
+    branch: feature/round-2-fullstack-integration
+    dockerContext: .
+    dockerfilePath: Dockerfile
+    autoDeploy: true
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: HOST
+        value: 0.0.0.0
+      - key: WORKBENCH_ENV
+        value: production
+      - key: DISABLE_SHUTDOWN
+        value: "1"
+      - key: ALLOWED_ORIGINS
+        value: https://unified-engineering-workbench-indol.vercel.app,https://unified-engineering-workbench.vercel.app,https://xoxosuriya.github.io,http://localhost:3000,http://127.0.0.1:3000,http://localhost:8080,http://127.0.0.1:8080
+    healthCheckPath: /api/thermal3d/health
+

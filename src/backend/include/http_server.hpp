@@ -6,6 +6,8 @@
 #include <thread>
 #include <memory>
 #include <mutex>
+#include <map>
+#include <chrono>
 #include "embedded_hardware.hpp"
 
 namespace workbench {
@@ -41,10 +43,21 @@ public:
     static void set_process_start_time(std::chrono::steady_clock::time_point tp);
     static double get_launch_to_ready_ms();
 
+    bool is_thermal3d_solve_in_progress() const { return thermal3d_solve_in_progress_.load(); }
+
+#ifdef WORKBENCH_ENABLE_TEST_HOOKS
+    static void set_thermal3d_test_hook(std::function<void()> hook);
+#endif
+
 private:
     void listen_loop();
     void handle_client(uintptr_t client_socket);
     HttpResponse route_request(const HttpRequest& req);
+
+    HttpResponse handle_thermal3d_models(const HttpRequest& req);
+    HttpResponse handle_thermal3d_config(const HttpRequest& req);
+    HttpResponse handle_thermal3d_health(const HttpRequest& req);
+    HttpResponse handle_thermal3d_solve(const HttpRequest& req);
 
     std::string host_;
     int preferred_port_;
@@ -60,6 +73,7 @@ private:
     std::mutex hw_mutex_;
     std::atomic<bool> benchmark_cancel_requested_{false};
     std::atomic<bool> benchmark_in_progress_{false};
+    std::atomic<bool> thermal3d_solve_in_progress_{false};
 };
 
 } // namespace workbench

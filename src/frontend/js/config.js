@@ -18,8 +18,12 @@ window.CONFIG = {
   
   // Network and mock detection
   apiBase: '',
-  statusPollIntervalMs: 2000,
-  mockTimeoutMs: 2500,
+  thermal3dApiBase: '',
+  productionApiUrl: 'https://unified-engineering-workbench-backend.onrender.com',
+  githubRepoUrl: 'https://github.com/xoxosuriya/Unified-Engineering-Workbench',
+  liveAppUrl: 'https://unified-engineering-workbench-indol.vercel.app/',
+  statusPollIntervalMs: 5000,
+  mockTimeoutMs: 1200,
   
   // UI animation timings
   openDurationMs: 1050,
@@ -79,8 +83,21 @@ window.MODULES = [
     motif: 'thermal'
   },
   {
-    id: 'backprop',
+    id: 'thermal3d',
     index: 3,
+    title: '3D Thermal FEA',
+    spineTitle: '3D THERMAL FEA',
+    romaji: '3D SOLVER',
+    label: 'TASK C',
+    group: 'SOLVE',
+    blurb: 'Three-dimensional finite-volume thermal analysis of solid cube and finned heat-sink geometries using Profile Cholesky, PCG and SOR solvers.',
+    taskDesc: 'TASK C / 3D SOLVER',
+    metaLine: 'TASK C / 3D FINITE-VOLUME THERMAL / C++17',
+    motif: 'thermal3d'
+  },
+  {
+    id: 'backprop',
+    index: 4,
     title: 'Backpropagation',
     romaji: 'BACKPROPAGATION',
     label: 'TASK F',
@@ -92,7 +109,7 @@ window.MODULES = [
   },
   {
     id: 'performance',
-    index: 4,
+    index: 5,
     title: 'Multicore Batch',
     romaji: 'PARALLEL SOLVER',
     label: 'TASK D',
@@ -104,7 +121,7 @@ window.MODULES = [
   },
   {
     id: 'hardware',
-    index: 5,
+    index: 6,
     title: 'Embedded Hardware',
     romaji: 'HARDWARE TELEMETRY',
     label: 'TASK E',

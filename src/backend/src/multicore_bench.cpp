@@ -11,6 +11,8 @@
 #if defined(_WIN32)
 #include <windows.h>
 #include <intrin.h>
+#elif defined(__linux__)
+#include <unistd.h>
 #endif
 
 namespace workbench {
@@ -111,6 +113,12 @@ double MulticoreBenchmarker::get_total_ram_gb() {
     mem_status.dwLength = sizeof(mem_status);
     if (GlobalMemoryStatusEx(&mem_status)) {
         return static_cast<double>(mem_status.ullTotalPhys) / (1024.0 * 1024.0 * 1024.0);
+    }
+#elif defined(__linux__)
+    long pages = sysconf(_SC_PHYS_PAGES);
+    long page_size = sysconf(_SC_PAGE_SIZE);
+    if (pages > 0 && page_size > 0) {
+        return (static_cast<double>(pages) * static_cast<double>(page_size)) / (1024.0 * 1024.0 * 1024.0);
     }
 #endif
     return 16.0;

@@ -8,14 +8,15 @@ window.Shelf = (function() {
   'use strict';
 
   // Config & Constants
-  const NUM_MODULES = 6;
-  const COPIES = 7;
-  const TOTAL_TAPES = NUM_MODULES * COPIES; // 42 tapes
+  const NUM_MODULES = (window.MODULES && window.MODULES.length) || 7;
+  const COPIES = 3;
+  const TOTAL_TAPES = NUM_MODULES * COPIES; // 21 tapes (3 copies of 7 modules)
+  const INIT_MOD_INDEX = (window.CONFIG && typeof CONFIG.initialModuleIndex === 'number') ? CONFIG.initialModuleIndex : 2;
 
   // State
-  let s = 20.0; // Start on index 2 (Thermal FEA) in middle copy: 2 + 3 * 6 = 20
-  let T = 20.0;
-  let activeModuleIndex = 2;
+  let s = INIT_MOD_INDEX + NUM_MODULES; // Start on default active module (Thermal FEA 1D) in middle copy
+  let T = s;
+  let activeModuleIndex = INIT_MOD_INDEX;
   let isDragging = false;
   let dragStartX = 0;
   let dragStartT = 0;
@@ -237,6 +238,61 @@ window.Shelf = (function() {
         groupIndicatorEl.style.transform = `translateX(${btn.offsetLeft}px)`;
       }
     });
+    const launch3dBtn = document.querySelector('#btn-open-thermal3d');
+    if (launch3dBtn) {
+      const activeMod = MODULES[activeModuleIndex];
+      launch3dBtn.classList.toggle('is-active', !!(activeMod && activeMod.id === 'thermal3d'));
+    }
+  }
+
+  function applySettledTapeTransforms() {
+    const cullingThreshold = W / 2 + 1.5 * d;
+    for (let v = 0; v < TOTAL_TAPES; v++) {
+      const tapeEl = tapeElements[v];
+      if (!tapeEl) continue;
+
+      const r = normalizeRelative(v - s);
+      const x = calcX(r);
+      if (Math.abs(x) > cullingThreshold) {
+        tapeEl.style.visibility = 'hidden';
+        continue;
+      }
+      tapeEl.style.visibility = 'visible';
+
+      const o = smoothstep(Math.max(0, 1 - Math.abs(r)));
+      const rotY = -90.0 * o;
+      const rotZ = -4.5 * o;
+      const tz = o * 0.2 * H;
+      const ty = -o * 0.025 * H;
+
+      tapeEl.style.transform = `translate3d(${x.toFixed(2)}px, ${ty.toFixed(2)}px, ${tz.toFixed(2)}px) rotateZ(${rotZ.toFixed(2)}deg) rotateX(0.00deg) rotateY(${rotY.toFixed(2)}deg)`;
+      tapeEl.style.zIndex = Math.round(100 - Math.abs(r) * 4);
+
+      const spFace = tapeEl.children[0];
+      const cvFace = tapeEl.children[1];
+      if (spFace) spFace.style.setProperty('--shade', (o * 0.55).toFixed(3));
+      if (cvFace) cvFace.style.setProperty('--shade', ((1 - o) * 0.5).toFixed(3));
+    }
+  }
+
+  function openModuleById(moduleId) {
+    if (isSheetOpen) return;
+    const mod = MODULES.find(m => m.id === moduleId);
+    if (!mod) return;
+
+    const curMod = ((Math.round(s) % NUM_MODULES) + NUM_MODULES) % NUM_MODULES;
+    let diff = mod.index - curMod;
+    if (diff > NUM_MODULES / 2) diff -= NUM_MODULES;
+    if (diff < -NUM_MODULES / 2) diff += NUM_MODULES;
+
+    const targetV = Math.round(s + diff);
+    s = targetV;
+    T = targetV;
+    tiltX = 0;
+    tiltY = 0;
+    updateActiveCaption(mod.index, Math.sign(diff) || 1);
+    applySettledTapeTransforms();
+    App.openModuleSheet(mod.id);
   }
 
   function initGroupTabs() {
@@ -259,6 +315,15 @@ window.Shelf = (function() {
         }
       });
     });
+
+    const launch3dBtn = document.querySelector('#btn-open-thermal3d');
+    if (launch3dBtn) {
+      launch3dBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openModuleById('thermal3d');
+      });
+    }
 
     // Set initial position
     setTimeout(() => {
@@ -594,6 +659,8 @@ window.Shelf = (function() {
       } else {
         delete document.body.dataset.quiet;
       }
-    }
+    },
+
+    openModuleById: openModuleById
   };
 })();

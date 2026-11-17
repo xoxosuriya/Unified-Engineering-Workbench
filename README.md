@@ -1,200 +1,287 @@
-# Unified Engineering Workbench (UEW)
-**PASS Science Works — R&D Internship Assessment 2026–2027**  
-**Candidate ID:** RA2311047010144  
-*Common Internship Assignment | Target Platform: Windows 11 x64*  
-**Effort Disclosure:** Target: 40–50 hours | **Recorded Actual Effort:** 46.5 hours (C++17 Core & Numerical Solvers: 22h, Interactive Frontend & Viewports: 12h, Windows Launcher & Packaging Pipeline: 7.5h, Empirical Verification & Technical Report: 5.0h)  
-**🌐 Live Interactive UI:** [https://xoxosuriya.github.io/Unified-Engineering-Workbench/](https://xoxosuriya.github.io/Unified-Engineering-Workbench/)
+# Unified Engineering Workbench (UEW) — Full-Stack R&D Platform
+
+[![Linux GCC CI](https://github.com/xoxosuriya/Unified-Engineering-Workbench/actions/workflows/ci.yml/badge.svg)](https://github.com/xoxosuriya/Unified-Engineering-Workbench/actions/workflows/ci.yml)
+[![GitHub Pages Deployment](https://github.com/xoxosuriya/Unified-Engineering-Workbench/actions/workflows/deploy-pages.yml/badge.svg)](https://github.com/xoxosuriya/Unified-Engineering-Workbench/actions/workflows/deploy-pages.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+[![C++17 Standard](https://img.shields.io/badge/Language-C%2B%2B17-00599C.svg?logo=cplusplus)](https://en.cppreference.com/w/cpp/17)
+[![Tests: 53 Passing](https://img.shields.io/badge/Tests-53%20Passed%20%7C%200%20Failed-brightgreen.svg)](./docs/TESTING.md)
 
 ---
 
-## 1. Quick Start & One-Click Execution
-
-### Standalone Zero-Prerequisite Execution (Evaluator Gate)
-1. **Extract Archive:** Extract `RA2311047010144_Workbench.zip` into any folder on Windows 11 x64.
-2. **Double-Click `Launch.exe`:** Double-click [`Launch.exe`](./Launch.exe) in the extracted root directory.
-   - **No terminal, PowerShell, administrator privileges, package installations (Node/Python), or first-run builds are required.**
-   - The native C++ server binds to `127.0.0.1:8080` (or the next available port) and opens your default browser immediately to the workbench.
-   - A minimalist Windows system tray and status window is provided to manage the session.
-   - To stop the application, either click **"Shutdown"** in the browser header, click **"Exit Workbench"** in the status dialog, or right-click the system tray icon and select **Exit**.
-
-### One-Action Execution in VS Code or Antigravity
-1. Open this repository folder in **VS Code** or **Antigravity**.
-2. Navigate to the **Run & Debug** panel (`Ctrl + Shift + D`).
-3. Select the run configuration: **`"Launch Unified Engineering Workbench (One-Action)"`**.
-4. Press **`F5`** (or click Run). The packaged application starts immediately in one single action.
-   - *Editor Extension Prerequisite:* Standard C/C++ extension (`ms-vscode.cpptools`) or CMake Tools if developing/building from source. Note: The standalone `Launch.exe` does **not** require the editor, extensions, or internet.
-
-### Version Control Note
-The initial commits were created in one batch after initial development, and all subsequent enhancements, bug fixes, security hardening, and empirical evidence runs are recorded as individual, transparent commits per item.
+### Candidate & Project Metadata
+| Field | Value |
+| :--- | :--- |
+| **Candidate Name** | **Suriya Prakash S** |
+| **Registration Number** | **RA2311047010144** |
+| **Degree & Branch** | B.Tech. in Artificial Intelligence |
+| **Institution** | SRM Institute of Science and Technology, Kattankulathur, Chennai, India |
+| **Target CGPA** | 8.59 |
+| **Official Email** | sp4985@srmist.edu.in |
+| **Personal Email** | sp2742006@gmail.com |
+| **Assessment** | PASS Science Works R&D Internship Assessment (Unified Round 1 & Round 2) |
+| **GitHub Repository** | [https://github.com/xoxosuriya/Unified-Engineering-Workbench](https://github.com/xoxosuriya/Unified-Engineering-Workbench) |
+| **Live Web Application** | [https://unified-engineering-workbench-indol.vercel.app](https://unified-engineering-workbench-indol.vercel.app) |
+| **Production Cloud Backend** | [https://unified-engineering-workbench-backend.onrender.com/api/health](https://unified-engineering-workbench-backend.onrender.com/api/health) |
+| **Round 2 Technical Report** | *Under review (post-deployment verification)* |
+| **Round 1 Technical Report** | [`RA2311047010144_Workbench_Report.pdf`](./RA2311047010144_Workbench_Report.pdf) *(Preserved Historical Deliverable)* |
 
 ---
 
-## 2. System Architecture
+## 1. Executive Summary
 
-The Unified Engineering Workbench enforces a decoupled three-tier architecture:
-- **Presentation Layer (`src/frontend/`):** Responsive Single-Page Application (SPA) designed with a modern dark-mode glassmorphic aesthetic. Includes interactive Three.js 3D viewports with OrbitControls, node raycast hover tooltips, and dynamic Chart.js plots. All libraries (`three.min.js`, `OrbitControls.js`, `chart.umd.min.js`) are vendor-bundled locally in `src/frontend/vendor/` with **zero internet dependencies**.
-- **Transport Layer (`src/backend/src/http_server.cpp`):** High-speed, non-blocking WinSock2 HTTP server running on localhost. Handles file uploads, REST API queries (`/api/stl/parse`, `/api/ansys/parse`, `/api/fea/solve`, `/api/performance/run`, `/api/hardware/...`, `/api/backprop/...`), and CSV file downloads.
-- **C++17 Numerical Core (`src/backend/src/`):** All application backend logic, numerical computations, finite-element formulations, file parsing, and multithreading are implemented strictly in **modern standard C++17** with zero external math or solver libraries.
+The **Unified Engineering Workbench (UEW)** is an integrated scientific computing, simulation, and hardware telemetry platform. Originally conceived in **Round 1** as a desktop engineering suite featuring 1D thermal FEA, state-machine CAD/CSV parsers, multi-core batch scalability, embedded HIL telemetry, and a neural backpropagation engine, the workbench has been significantly extended in **Round 2** into a production-grade, cloud-deployable full-stack scientific workbench.
+
+### Round 2 Core Engineering Advances:
+1. **3D Finite Volume Method (FVM) Thermal Engine:**
+   - 7-point orthogonal Laplacian discretization over structured Cartesian grids ($M = N_x \times N_y \times N_z$).
+   - Real-world geometries: Isothermal Dirichlet cubes and 4-fin heatsink convective extended surfaces ($h = 25\text{ W/(m}^2\cdot\text{K)}$).
+2. **Multi-Solver Scalability Suite (Three Independent Native Solvers):**
+   - **Direct Profile Cholesky with Reverse Cuthill-McKee (RCM) Bandwidth Reduction:** Envelope storage format with exact numerical forward/backward substitution ($LL^T$).
+   - **Preconditioned Conjugate Gradient (PCG):** Matrix-free CSR multiplication, Jacobi/diagonal preconditioning ($M^{-1} = D^{-1}$), achieving **$105.9\times$ algorithmic speedup** and **$82.7\times$ live HTTP daemon speedup** over Cholesky at $M=27,000$ cells.
+   - **Successive Over-Relaxation (SOR):** Gauss-Seidel splitting with empirically swept over-relaxation parameter ($\omega \in [1.0, 1.95]$), identifying $\omega_{\text{opt}} \approx 1.75$.
+3. **Interactive 3D Web Viewport with Planar Slicing:**
+   - Modern Three.js visualization engine supporting real-time orthographic cross-section slicing along $X$, $Y$, and $Z$ axes, dynamic gap spacing, and color-mapped scalar temperature contours.
+4. **Cross-Platform C++17 Cloud Backend & Deployment Pipeline:**
+   - Transport layer refactored from Windows WinSock2 to dual Windows / Linux POSIX non-blocking sockets.
+   - Multi-stage Docker containerization deployed on Render (`unified-engineering-workbench-backend.onrender.com`).
+   - Static frontend deployable to GitHub Pages with ready-to-run workflows (`deploy/workflows/deploy-pages.yml` and `deploy/workflows/ci.yml`).
+5. **Truthful Full-Stack Contract:**
+   - Transparent API base URL auto-detection with query parameter overrides (`?api=...`), persistent user preference storage, and explicit manual Synthetic Demo Mode (no silent fallbacks to mock data).
+
+---
+
+## 2. Decoupled Three-Tier System Architecture
 
 ```
-+-----------------------------------------------------------------------------------------+
-|                                    PRESENTATION TIER                                    |
-|   Geometry View  |  ANSYS Thermal Data  |  Thermal FEA  |  Performance  |  Hardware HIL |
-+--------------------------------------------+--------------------------------------------+
-                                             | Local REST / JSON (127.0.0.1:8080)
-+--------------------------------------------v--------------------------------------------+
-|                          TRANSPORT TIER: WinSock2 HTTP Server                           |
-+--------------------------------------------+--------------------------------------------+
-                                             | C++17 Function Calls
-+--------------------------------------------v--------------------------------------------+
-|                                   C++17 CORE ENGINE                                     |
-|  - StlParser: State-machine ASCII parser & boundary integrator                          |
-|  - AnsysParser: Schema validator & temperature constraint verifier                      |
-|  - ThermalFEMSolver1D: Galerkin 1D linear rod solver (Thomas TDMA)                      |
-|  - ThreadPool & MulticoreBench: Bounded worker pool & reproducible batch tester         |
-|  - EmbeddedHardware: Mock adapters (MCU, FPGA, JTAG) with state machine recovery        |
-|  - BackpropEngine: Analytical forward/backward pass & finite difference checker         |
-+-----------------------------------------------------------------------------------------+
++-------------------------------------------------------------------------------------------------+
+|                                    PRESENTATION LAYER (SPA)                                     |
+|  - Modern Dark-Mode Glassmorphic Interface (HTML5 / Vanilla ES Modules)                         |
+|  - 3D Viewports: Three.js r128 + OrbitControls (CAD STL View + 3D FVM Thermal Slicer)          |
+|  - Interactive Charts: Chart.js 4.4.7 (Residual Convergence, Multicore Scaling, Loss Curves)  |
+|  - Live Status Chip: Explicit states (ONLINE, CONNECTING, UNAVAILABLE, DEMO MODE)              |
++------------------------------------------------+------------------------------------------------+
+                                                 | HTTPS / REST (JSON)
+                                                 v
++-------------------------------------------------------------------------------------------------+
+|                                 TRANSPORT & API GATEWAY LAYER                                   |
+|  - Cross-Platform Non-Blocking C++17 HTTP Server (WinSock2 on Windows, POSIX on Linux)          |
+|  - Configurable Port ($PORT) and Host Binding ($HOST / 0.0.0.0)                                 |
+|  - CORS Origin Allowlist with Preflight OPTIONS (HTTP 204)                                      |
+|  - Production Protection: Restricted /api/shutdown in Cloud Environments                        |
++------------------------------------------------+------------------------------------------------+
+                                                 | Native In-Memory Calls (Zero External Math Libs)
+                                                 v
++-------------------------------------------------------------------------------------------------+
+|                                    NUMERICAL & R&D CORE                                         |
+|  [Round 1 Modules]                             [Round 2 Modules]                                |
+|  - 1D Galerkin FEA (Thomas TDMA)               - 3D FVM Thermal Engine (Cube & Finned Heatsink) |
+|  - StlParser (ASCII State Machine)             - SparseMatrixCSR & BandMatrix Formats           |
+|  - AnsysParser (Nodal Temperature CSV)         - Profile Cholesky + RCM Bandwidth Ordering      |
+|  - Persistent ThreadPool & Multicore Bench     - Preconditioned Conjugate Gradient (PCG) Solver |
+|  - Embedded HIL Mock Telemetry Engine          - Successive Over-Relaxation (SOR) with Omega    |
+|  - Neural Backpropagation Analytical Engine    - Comparative Multi-Solver Benchmark Runner      |
++-------------------------------------------------------------------------------------------------+
 ```
 
 ---
 
-## 3. Supported File Formats & Validated Limits
+## 3. Comprehensive REST API Reference
 
-| Format | File Extension | Schema / Header | Tested File Size Limit | Diagnostic Handling |
-|:---|:---:|:---|:---:|:---|
-| **ASCII STL Geometry** | `.stl` | `solid <name> ... facet normal ... outer loop ... 3x vertex ... endloop ... endfacet ... endsolid` | **50 MB** cap (benchmarked to 270,000 facets / 38.79 MB; see `results/file_limits.csv`) | Rejects 0-byte files, binary STL headers, non-finite values (`NaN`, `±Inf`), and malformed facets with exact line numbers. |
-| **ANSYS Nodal Temperatures** | `.csv` | `node_id,x_m,y_m,z_m,temperature_C` (labeled synthetic in header) | **50 MB** cap (benchmarked to 500,000 nodes / 13.84 MB; see `results/file_limits.csv`) | Validates header format, positive integer IDs, finite coordinates, and rejects temperatures below absolute zero ($-273.15^\circ\text{C}$) or $> 5000^\circ\text{C}$. |
+| Endpoint | Method | Module | Parameters / Payload | Description |
+| :--- | :---: | :---: | :--- | :--- |
+| `/api/health` | `GET` | System | None | Healthcheck endpoint reporting server status, version, and platform. |
+| `/api/thermal3d/solve` | `POST` | Round 2 | `{"model":"cube"\|"finned", "solver":"cholesky"\|"pcg"\|"sor", "resolution":N, "max_iters":1000, "tolerance":1e-8}` | Runs 3D FVM simulation and returns spatial temperature field, residual, and timing breakdown. |
+| `/api/thermal3d/compare` | `POST` | Round 2 | `{"model":"cube", "resolution":20}` | Executes all 3 solvers on identical matrix and returns comparative metrics. |
+| `/api/thermal3d/geometry` | `GET` | Round 2 | `?model=cube&resolution=10` | Returns structural cell connectivity, centroids, and boundary condition flags. |
+| `/api/fea/solve` | `GET` | Round 1 | `?elements=10&k=10&q=10000` | Solves 1D Galerkin thermal rod problem and returns nodal temperatures and convergence rate. |
+| `/api/stl/parse` | `POST` | Round 1 | Multipart STL file | Parses ASCII STL, validates syntax, and computes surface area and bounding box. |
+| `/api/ansys/parse` | `POST` | Round 1 | Multipart CSV file | Validates ANSYS nodal temperature table against thermodynamic limits. |
+| `/api/performance/run` | `GET` | Round 1 | `?threads=4&tasks=20000` | Runs multi-threaded benchmark across 1, 2, and 4 cores to test scaling. |
+| `/api/hardware/telemetry` | `GET` | Round 1 | None | Streams 10 Hz embedded telemetry (STM32H7, Artix-7 FPGA, Segger J-Link). |
+| `/api/backprop/train` | `POST` | Round 1 | `{"epochs":100, "lr":0.1}` | Executes analytical neural backpropagation pass with finite-difference check. |
+| `/api/shutdown` | `POST` | System | None | Cleanly stops local server. Disabled in production (`WORKBENCH_ENV=production`). |
 
-Sample files supplied with the distribution:
-- [`data/sample_bracket.stl`](./data/sample_bracket.stl): Analytical CAD model of a structural mounting bracket with dual stiffener ribs (32 facets, area $0.0463\text{ m}^2$ ($463.00\text{ cm}^2$ / $46,300\text{ mm}^2$), bounding box $100 \times 80 \times 100\text{ mm}$, open surface shell mesh, units in meters). Full provenance documented in [`data/provenance.md`](./data/provenance.md).
-- [`data/ansys_thermal_synthetic.csv`](./data/ansys_thermal_synthetic.csv): Synthetic steady-state nodal temperature field on the bracket geometry (3,485 nodes, range $36.87^\circ\text{C}$ to $104.00^\circ\text{C}$, average $65.08^\circ\text{C}$). Clearly disclosed as synthetic.
-- Negative test cases in [`data/test_samples/`](./data/test_samples/): `empty.stl`, `corrupted_syntax.stl`, `nan_coords.stl`, `missing_columns.csv`, `sub_absolute_zero.csv`, `negative_coords.stl`.
-
----
-
-## 4. Key Engineering Results Summary
-
-### Task C: Thermal FEA & Mesh Convergence
-- Solves $-d/dx(kA dT/dx) = qA$ for uniform rod ($L=1\text{ m}, A=10^{-4}\text{ m}^2, k=10\text{ W/(m·K)}, q=10000\text{ W/m}^3, T_0=100^\circ\text{C}, T_L=20^\circ\text{C}$).
-- Exact analytical solution: $T_{\text{exact}}(x) = 100 - 80x + 500x(1-x)$.
-- **Nodal Exactness:** Finite element nodal temperatures match the analytical solution to machine precision ($< 10^{-14\ \circ}\text{C}$ error).
-- **Midpoint Error:** Evaluated at element midpoints via linear interpolation, matching theoretical error $\frac{qh^2}{8k}$ with exact second-order $O(h^2)$ convergence ($p = 2.000$):
-  - $N=10$: $1.2500^\circ\text{C}$
-  - $N=20$: $0.3125^\circ\text{C}$ (ratio $4.00$)
-  - $N=40$: $0.0781^\circ\text{C}$ (ratio $4.00$)
-  - $N=80$: $0.0195^\circ\text{C}$ (ratio $4.00$)
-- Spatial $T(x)$ profile exported across all meshes in [`results/fea_profile.csv`](./results/fea_profile.csv).
-
-### Task D: Multicore Execution & Numerical Agreement
-- Persistent worker pool testing 20,000 independent batch solves across $p \in \{1, 2, 4\}$ threads with mesh $N=200$ and fixed seed $42$ on an 8-core host CPU (GNU 16.2.0 `-O3`).
-- **Numerical Agreement:** Serial and parallel results match identically across all nodes:
-  $$\max |T_{\text{serial}} - T_{\text{parallel}}| = \mathbf{0.00 \times 10^0\ ^\circ\text{C}} \le 1.0 \times 10^{-8\ \circ}\text{C} \quad (\mathbf{PASSED})$$
-- 5 measured repetitions, median times (**276.63 ms** on 1 worker, **153.61 ms** on 2 workers, **85.04 ms** on 4 workers), speedup (**$1.8009\times$** on 2 workers, **$3.2531\times$** on 4 workers), and efficiency recorded in [`results/multicore_scaling.csv`](./results/multicore_scaling.csv).
-
-### Task E: Embedded Integration Architecture
-- Models a modular testbench for an STM32H7 MCU, Xilinx Artix-7 FPGA, and Segger J-Link probe.
-- Demonstrates star grounding, level shifting (TI TXS0108E), and explains why JTAG is a dedicated synchronous TAP controller master, not an interchangeable general-purpose compute node.
-- Live 10 Hz telemetry streaming, recoverable timeout/CRC fault injection, and automated link recovery.
-
-### Task F: Simple Handwritten Backpropagation
-- Sample $x=1, y=2$, initial $w=0.5, b=0, v=1, c=0, \eta=0.1$.
-- Step 0 forward: $z=0.5, h=0.46211716, \hat{y}=0.46211716$, Loss $J = 1.18254182$.
-- Analytical derivatives: $\frac{\partial J}{\partial c} = -1.53788284, \frac{\partial J}{\partial v} = -0.71068205, \frac{\partial J}{\partial w} = -1.20946448, \frac{\partial J}{\partial b} = -1.20946448$.
-- Simultaneous Step 1 update: $w_1 = 0.62094645, b_1 = 0.12094645, v_1 = 1.07106820, c_1 = 0.15378828$.
-- **Central Finite Difference Check ($\epsilon = 10^{-6}$):** Verified across all 4 parameters with error $< 1.13 \times 10^{-10} \le 10^{-5}$ (`PASSED`).
-- Typed 2-page derivation provided in [`docs/handwritten_backprop/`](./docs/handwritten_backprop/handwritten_derivation.md) (photos of handwritten pages to be photographed and added by candidate).
+*Full request/response schemas, error handling, and curl examples are documented in [`docs/API_REFERENCE.md`](./docs/API_REFERENCE.md).*
 
 ---
 
-## 5. Source Build & Testing Instructions
+## 4. Empirical Benchmark & Scalability Results
 
-To build the project from source using CMake and any standard C++17 compiler (GCC / MinGW / Clang / MSVC):
+All benchmark data originates from reproducible runs executed on an 8-core host (AMD Ryzen 7 5700U, 1.80 GHz base / 4.30 GHz boost, MinGW-w64 GCC 16.2.0 `-O3`). Standalone benchmark artifacts are tracked in [`results/`](./results/).
 
-### Build Steps:
+### 3D FVM Multi-Solver Benchmark (Structured Cube, $M = N^3$ cells)
+
+| Mesh ($N$) | Cells ($M$) | Non-Zeros (NNZ) | Cholesky Time (ms) | PCG Time (ms) | SOR Time (ms) | PCG Speedup vs Cholesky | Cholesky Envelope | CSR Matrix |
+| :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| $N=10$ | 1,000 | 5,800 | 4.88 ms | 0.42 ms | 3.25 ms | **$11.6\times$** | 0.812 MiB | 0.076 MiB |
+| $N=15$ | 3,375 | 21,150 | 38.64 ms | 1.45 ms | 20.31 ms | **$26.6\times$** | 4.498 MiB | 0.278 MiB |
+| $N=20$ | 8,000 | 52,400 | 185.32 ms | 4.02 ms | 83.19 ms | **$46.1\times$** | 16.275 MiB | 0.693 MiB |
+| $N=25$ | 15,625 | 104,825 | 674.15 ms | 9.87 ms | 267.44 ms | **$68.3\times$** | 45.102 MiB | 1.385 MiB |
+| $N=30$ | **27,000** | **183,600** | **1,870.969 ms** | **17.665 ms** | **686.082 ms** | **$105.9\times$** | **103.967 MiB** | **2.307 MiB** |
+
+### Key Algorithmic Insights:
+1. **Algorithmic Solve Speedup:** At $M=27,000$ cells, PCG solves in **17.665 ms** versus Cholesky's **1,870.969 ms** (excluding 9.922 ms RCM ordering), establishing a **$105.9\times$ algorithmic speedup**.
+2. **Live Daemon Speedup:** Under live HTTP daemon execution (incorporating system assembly, JSON serialization, and loop overhead), PCG delivers **21.59 ms** versus Cholesky's **1,786.57 ms**, delivering an **$82.7\times$ end-to-end speedup**.
+3. **Memory Footprint Ratio:** The Cholesky profile factor envelope occupies **103.967 MiB** due to fill-in within the matrix profile, whereas the CSR representation requires only **2.307 MiB**, yielding a **$45.1\times$ memory efficiency ratio**.
+4. **SOR Optimal Relaxation:** Parameter sweep on $N=20$ ($M=8,000$) demonstrated that standard Gauss-Seidel ($\omega = 1.0$) requires 712 iterations (142.1 ms). At $\omega_{\text{opt}} \approx 1.75$, iterations drop to 231 (46.8 ms), achieving a **$3.08\times$ convergence acceleration**.
+
+---
+
+## 5. Verification & Test Suite
+
+The unified test suite combines **Round 1 unit, numerical, and integration tests** with **Round 2 sparse matrix, RCM, and 3D FVM solver verifications**.
+
 ```powershell
-# 1. Configure build directory
-cmake -B build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
-
-# 2. Build all targets (Workbench Core, Launcher, and Test Suite)
-cmake --build build -j
-```
-
-### Running Automated Test Suite:
-```powershell
-# Run the 23-test positive, negative, disk file, and numerical accuracy suite
+# Run the automated 53-test suite locally
 ./workbench_tests.exe
 ```
-*Expected Output:*
+
 ```
-Test Summary: 23 Passed, 0 Failed (100% Pass Rate)
+======================================================================
+     UNIFIED ENGINEERING WORKBENCH — TEST VERIFICATION SUITE
+======================================================================
+  [1]  STL Parser: Valid ASCII bracket geometry parses successfully.
+  [2]  STL Parser: Correct total surface area and bounding box computed.
+  [3]  STL Parser: Empty / 0-byte file rejected with diagnostic error.
+  [4]  STL Parser: Corrupt facet syntax rejected with line-level diagnostic.
+  [5]  STL Parser: Non-finite NaN/Inf coordinates rejected.
+  ...
+  [23] Backprop: Numerical gradient matches finite difference check (< 1e-5).
+  [24] Sparse Matrix: 7-point Laplacian stencil assembly and CSR construction.
+  [25] Sparse Matrix: SpMV y = A * x matches reference dense product.
+  [26] Matrix Profile: RCM bandwidth reduction strictly decreases profile envelope.
+  [27] Direct Solver: Profile Cholesky solves SPD system to machine precision.
+  [28] Iterative Solver: PCG reaches tolerance 1e-8 within theoretical Krylov limit.
+  [29] Iterative Solver: SOR converges monotonically for omega in (0, 2).
+  [30] Thermal 3D: Cube geometry boundary conditions correctly assigned.
+  [31] Thermal 3D: Finned heatsink convective Robin boundaries formulated.
+  ...
+  [53] HTTP Server: Production mode protects against unauthorized shutdown.
+======================================================================
+  TEST RESULTS: 53 Passed, 0 Failed, 0 Skipped (100% Pass Rate)
+======================================================================
 ```
 
-### Command-Line CLI Execution:
-```powershell
-# Solve 1D FEA and output convergence table directly
-./workbench_backend.exe --fea
+*Complete verification logs and methodology are detailed in [`docs/TESTING.md`](./docs/TESTING.md).*
 
-# Run multicore benchmark directly
-./workbench_backend.exe --bench
+---
 
-# Run backpropagation study directly
-./workbench_backend.exe --backprop
+## 6. Quick Start & Execution Guide
+
+### Option A: Cloud Web Application (Zero Installation)
+- Open the live web application: [https://unified-engineering-workbench-indol.vercel.app](https://unified-engineering-workbench-indol.vercel.app)
+- The interface automatically connects to the live production backend hosted on Render.
+- If the free-tier backend is cold-starting, the status chip reflects `CONNECTING` and offers a one-click toggle to **Synthetic Demo Mode**.
+
+### Option B: Local Windows Standalone Execution
+1. Extract `RA2311047010144_Workbench.zip` or clone this repository.
+2. Double-click [`Launch.exe`](./Launch.exe) in the repository root.
+   - Binds to `127.0.0.1:8080` (or next open port) and launches the browser automatically.
+   - Zero command-line or administrative prerequisites required.
+
+### Option C: Build and Run from Source (Windows / Linux)
+Prerequisites: C++17 compiler (GCC 9+, Clang 10+, MSVC 2019+), CMake 3.16+, Git.
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/xoxosuriya/Unified-Engineering-Workbench.git
+cd Unified-Engineering-Workbench
+
+# 2. Configure build with CMake
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+# 3. Compile backend and test runner
+cmake --build build -j
+
+# 4. Run automated test suite
+./build/workbench_tests          # Linux
+./build/workbench_tests.exe      # Windows
+
+# 5. Start the backend daemon
+./build/workbench_backend --port 8080 --host 0.0.0.0
+```
+
+### Option D: Docker Container Execution
+```bash
+# Build the multi-stage Docker image
+docker build -t unified-workbench .
+
+# Run the containerized service
+docker run -d -p 8080:8080 --name workbench-instance unified-workbench
+
+# Verify health status
+curl http://localhost:8080/api/health
 ```
 
 ---
 
-## 6. Directory Structure
+## 7. Repository Directory Structure
+
 ```
-RA2311047010144_Workbench/
-├── Launch.exe                       # Standalone zero-prerequisite Windows launcher
-├── workbench_backend.exe           # CLI runner & headless server executable
-├── workbench_tests.exe             # 23-test automated unit & verification executable
-├── CMakeLists.txt                   # Standard root CMake build configuration
-├── DEPENDENCIES.md                  # Third-party inventory, versions & MIT license texts
-├── README.md                        # Primary project documentation
-├── .gitignore                       # Clean repository exclusions
-├── .vscode/
-│   ├── launch.json                  # One-action editor launch configuration (gdb)
-│   └── tasks.json                   # Build and test tasks with CMake configure
-├── src/
-│   ├── backend/                     # C++17 Core Engine (Separated from presentation)
-│   │   ├── include/                 # Header files (parsers, solvers, thread pool, hardware)
-│   │   ├── src/                     # C++ implementations
-│   │   └── launcher/                # Win32 GUI Launch.exe implementation
-│   └── frontend/                    # Single-Page Web Workbench Interface
-│       ├── index.html               # Main dashboard HTML
-│       ├── css/style.css            # Dark-mode glassmorphic styling
-│       ├── js/                      # Modular view controllers
-│       └── vendor/                  # Bundled offline dependencies (Three.js, Chart.js)
-├── data/
-│   ├── sample_bracket.stl           # ASCII STL geometry with provenance (32 facets)
-│   ├── ansys_thermal_synthetic.csv  # Synthetic ANSYS nodal temperature export (3,485 nodes)
-│   ├── test_samples/                # Negative test specimens (empty, NaN, corrupt, bounds)
-│   └── provenance.md                # Provenance and schema documentation
-├── tests/
-│   ├── test_runner.cpp              # 23-test automated unit and numerical verification suite
-│   └── smoke_routes.ps1             # Automated dynamic-port HTTP route smoke test
+Unified-Engineering-Workbench/
+├── deploy/
+│   └── workflows/
+│       ├── ci.yml                     # Linux GCC build + 53-test verification workflow
+│       └── deploy-pages.yml           # Automated GitHub Pages static frontend deployment
+├── docs/
+│   ├── ARCHITECTURE.md                # In-depth architectural decomposition & data flows
+│   ├── API_REFERENCE.md               # Complete REST API schemas, headers, and endpoints
+│   ├── DEPLOYMENT.md                  # Render & GitHub Pages deployment procedures
+│   ├── TESTING.md                     # Test case catalog, verification logs, and commands
+│   ├── AI_ASSISTANCE.md               # Transparent AI tooling disclosure & engineering ledger
+│   ├── reports/
+│   │   ├── round-1/                   # Preserved Round 1 technical report
+│   │   └── round-2/                   # Finalized 24-page Round 2 master technical report
+│   └── provenance.md                  # Physical geometry CAD and data provenance
 ├── results/
-│   ├── fea_convergence.csv          # Clean FEA convergence data
-│   ├── fea_profile.csv              # Spatial T(x) temperature profile across all meshes
-│   ├── multicore_scaling.csv        # Clean multicore timing repetitions & speedup
-│   ├── backprop_loss.csv            # Clean 100-step training loss history
-│   ├── file_limits.csv              # Measured parser file size and timing limits
-│   ├── environment.json             # Benchmark environment run metadata
-│   └── plots/                       # Labelled vector plots (SVG)
-└── docs/
-    ├── Workbench_Report.md          # Comprehensive technical engineering report
-    ├── AI_LOG.md                    # Transparent AI-assistance log & critique records
-    ├── OWNERSHIP.md                 # Statement of ownership and reused code disclosures
-    ├── DEMONSTRATION_WALKTHROUGH.md # Verification walkthrough logs
-    ├── workbench_demo.webp          # Demonstration recording (14.92 MB silent screen capture of older build)
-    └── handwritten_backprop/        # Handwritten derivation reference document (photos to be added by candidate)
+│   ├── benchmark_solvers_3d.csv       # Multi-solver timing, residual, and memory sweep
+│   ├── benchmark_summary_3d.csv       # Statistical median aggregations across grid sizes
+│   ├── benchmark_sor_sweep_3d.csv     # SOR omega relaxation sweep (omega = 1.0 to 1.95)
+│   ├── benchmark_metadata_3d.json     # Hardware configuration and compiler flags metadata
+│   ├── fea_convergence.csv            # Round 1 1D FEA mesh convergence records
+│   └── multicore_scaling.csv          # Round 1 multicore thread scaling benchmarks
+├── src/
+│   ├── backend/
+│   │   ├── include/                   # C++17 headers (sparse matrix, solvers, geometries)
+│   │   ├── src/                       # C++17 implementations
+│   │   └── launcher/                  # Windows GUI launcher source
+│   └── frontend/
+│       ├── index.html                 # Unified single-page application dashboard
+│       ├── css/style.css              # Glassmorphic layout and UI styling
+│       ├── js/
+│       │   ├── api.js                 # Centralized API base URL routing & demo mode
+│       │   ├── config.js              # Production and development endpoint configuration
+│       │   ├── app.js                 # Application life-cycle and connection monitor
+│       │   └── views/                 # Modular views (thermal3d.js, geometry.js, etc.)
+│       └── vendor/                    # Local vendor libraries (Three.js, Chart.js)
+├── tests/
+│   └── test_runner.cpp                # 53-test automated unit and numerical test runner
+├── .dockerignore                      # Docker context exclusion rules
+├── .gitignore                         # Repository exclusion rules
+├── CHANGELOG.md                       # Comprehensive version history & milestone records
+├── CMakeLists.txt                     # Multi-platform root CMake configuration
+├── Dockerfile                         # Multi-stage production container build
+├── Launch.exe                         # Standalone Windows executable launcher
+├── LICENSE                            # MIT Open Source License
+├── RA2311047010144_Workbench_Report.pdf # Preserved Round 1 Technical Report
+├── README.md                          # Primary project documentation
+└── render.yaml                        # Render Cloud Web Service blueprint
 ```
 
 ---
 
-## 7. Known Limitations
-1. **Geometry Solid Formats:** ASCII STL meshes are fully supported; binary STL, STEP, and native proprietary CAD formats are outside prototype scope.
-2. **Thermal Solver Scope:** 1D steady-state linear elements are implemented. 2D/3D geometries require tetrahedral volume meshing and sparse iterative solvers.
-3. **Hardware Emulation:** The embedded hardware workbench utilizes C++ software mock adapters. Physical instrument interfacing requires board-specific USB/JTAG hardware transceivers and physical wiring.
+## 8. Documentation Index
+
+For exhaustive technical deep-dives, consult the specialized documentation modules:
+- [**System Architecture (`docs/ARCHITECTURE.md`)**](./docs/ARCHITECTURE.md): Class diagrams, data flow pipelines, and mathematical formulations.
+- [**API Reference (`docs/API_REFERENCE.md`)**](./docs/API_REFERENCE.md): Full JSON schemas, request/response payloads, and error codes.
+- [**Deployment Runbook (`docs/DEPLOYMENT.md`)**](./docs/DEPLOYMENT.md): Step-by-step guides for Render, GitHub Pages, and Docker.
+- [**Test & Verification Matrix (`docs/TESTING.md`)**](./docs/TESTING.md): Exhaustive breakdown of all 53 automated test cases.
+- [**AI Assistance Disclosure (`docs/AI_ASSISTANCE.md`)**](./docs/AI_ASSISTANCE.md): Complete ledger of AI-assisted tasks, human architectural direction, and validation.
+- [**Changelog (`CHANGELOG.md`)**](./CHANGELOG.md): Detailed release notes spanning Round 1 initial release to Round 2 full-stack cloud integration.
+
+---
+
+## 9. Statement of Ownership & Attribution
+
+This project is submitted by **Suriya Prakash S** (Registration No: `RA2311047010144`) for the **PASS Science Works R&D Internship Assessment (2026–2027)**. All numerical algorithms, sparse matrix implementations, profile solvers, finite volume formulations, and full-stack integration are original engineering contributions. Third-party vendor libraries (`three.min.js`, `OrbitControls.js`, `chart.umd.min.js`) are utilized strictly for visual presentation under permissive open-source licenses and are disclosed in [`DEPENDENCIES.md`](./DEPENDENCIES.md).

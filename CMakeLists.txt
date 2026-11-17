@@ -41,8 +41,53 @@ include_directories(
     src/backend/include
 )
 
-# Core Backend Library
-add_library(workbench_core STATIC
+# =========================================================================
+# Dependency Management: Eigen 3.4.0 (Header-Only Linear Algebra Library)
+# =========================================================================
+include(FetchContent)
+
+# Documented fallback options:
+# 1. System-installed Eigen3 package or /usr/include/eigen3 (e.g. Debian/Ubuntu libeigen3-dev)
+# 2. User-specified CMake cache variable: -DEIGEN_SOURCE_DIR=<path>
+# 3. Local vendor directory: ${CMAKE_CURRENT_SOURCE_DIR}/third_party/eigen-3.4.0
+# 4. Upstream Git repository tagged release 3.4.0
+
+find_package(Eigen3 3.3 QUIET CONFIG)
+
+if(TARGET Eigen3::Eigen)
+    message(STATUS "Eigen 3.4.0: Found system Eigen3 package: ${Eigen3_VERSION}")
+elseif(EXISTS "/usr/include/eigen3/Eigen/Dense")
+    message(STATUS "Eigen 3.4.0: Using system path /usr/include/eigen3")
+    add_library(Eigen3::Eigen INTERFACE IMPORTED)
+    target_include_directories(Eigen3::Eigen INTERFACE /usr/include/eigen3)
+    include_directories(/usr/include/eigen3)
+elseif(EIGEN_SOURCE_DIR AND EXISTS "${EIGEN_SOURCE_DIR}/Eigen/Dense")
+    message(STATUS "Eigen 3.4.0: Using offline path via EIGEN_SOURCE_DIR: ${EIGEN_SOURCE_DIR}")
+    FetchContent_Declare(
+        Eigen3
+        SOURCE_DIR "${EIGEN_SOURCE_DIR}"
+    )
+    FetchContent_MakeAvailable(Eigen3)
+elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/third_party/eigen-3.4.0/Eigen/Dense")
+    message(STATUS "Eigen 3.4.0: Using offline bundled path: ${CMAKE_CURRENT_SOURCE_DIR}/third_party/eigen-3.4.0")
+    FetchContent_Declare(
+        Eigen3
+        SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/eigen-3.4.0"
+    )
+    FetchContent_MakeAvailable(Eigen3)
+else()
+    message(STATUS "Eigen 3.4.0: Fetching upstream from Git tag 3.4.0...")
+    FetchContent_Declare(
+        Eigen3
+        GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
+        GIT_TAG 3.4.0
+        GIT_SHALLOW TRUE
+    )
+    FetchContent_MakeAvailable(Eigen3)
+endif()
+
+# Core Backend Sources
+set(WORKBENCH_CORE_SOURCES
     src/backend/src/stl_parser.cpp
     src/backend/src/ansys_parser.cpp
     src/backend/src/thermal_fea_1d.cpp
@@ -51,19 +96,51 @@ add_library(workbench_core STATIC
     src/backend/src/embedded_hardware.cpp
     src/backend/src/backprop_engine.cpp
     src/backend/src/http_server.cpp
+    src/backend/src/sparse_matrix.cpp
+    src/backend/src/thermal_solvers_3d.cpp
+    src/backend/src/thermal_geometry_3d.cpp
+    src/backend/src/comparative_benchmark_3d.cpp
 )
 
-if(WIN32)
-    target_link_libraries(workbench_core PUBLIC ws2_32)
+find_package(Threads REQUIRED)
+
+# Core Backend Library (Production: Zero Test Hooks)
+add_library(workbench_core STATIC
+    ${WORKBENCH_CORE_SOURCES}
+)
+
+target_link_libraries(workbench_core PUBLIC Eigen3::Eigen Threads::Threads)
+
+# Treat Eigen includes as SYSTEM headers to prevent third-party compiler warnings
+get_target_property(EIGEN_INC Eigen3::Eigen INTERFACE_INCLUDE_DIRECTORIES)
+if(EIGEN_INC)
+    target_include_directories(workbench_core SYSTEM PUBLIC ${EIGEN_INC})
 endif()
 
-# CLI and Headless Server Executable
+if(WIN32)
+    target_link_libraries(workbench_core PUBLIC ws2_32 psapi)
+endif()
+
+# Core Backend Library (Test-Enabled: Controlled Test Hooks for Concurrency Testing)
+add_library(workbench_core_testing STATIC
+    ${WORKBENCH_CORE_SOURCES}
+)
+target_compile_definitions(workbench_core_testing PUBLIC WORKBENCH_ENABLE_TEST_HOOKS=1)
+target_link_libraries(workbench_core_testing PUBLIC Eigen3::Eigen Threads::Threads)
+if(EIGEN_INC)
+    target_include_directories(workbench_core_testing SYSTEM PUBLIC ${EIGEN_INC})
+endif()
+if(WIN32)
+    target_link_libraries(workbench_core_testing PUBLIC ws2_32 psapi)
+endif()
+
+# CLI and Headless Server Executable (Production)
 add_executable(workbench_backend
     src/backend/src/main.cpp
 )
 target_link_libraries(workbench_backend PRIVATE workbench_core)
 
-# Standalone Launcher for Windows (Double-clickable Launch.exe)
+# Standalone Launcher for Windows (Double-clickable Launch.exe) (Production)
 if(WIN32)
     add_executable(Launch WIN32
         src/backend/launcher/launcher_win.cpp
@@ -71,16 +148,25 @@ if(WIN32)
     target_link_libraries(Launch PRIVATE workbench_core shell32 user32)
 endif()
 
-# Automated Test Suite
+# Automated Test Suite (Test-Enabled)
 enable_testing()
 add_executable(workbench_tests
     tests/test_runner.cpp
 )
-target_link_libraries(workbench_tests PRIVATE workbench_core)
+target_compile_definitions(workbench_tests PRIVATE WORKBENCH_ENABLE_TEST_HOOKS=1)
+target_link_libraries(workbench_tests PRIVATE workbench_core_testing)
 add_test(NAME AllWorkbenchTests COMMAND workbench_tests)
+set_tests_properties(AllWorkbenchTests PROPERTIES WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+
+# Copy data directory into build directory for test accessibility across all working directories
+file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/data" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}")
 
 # Install / Packaging Configuration
-install(TARGETS Launch workbench_backend workbench_tests RUNTIME DESTINATION .)
+if(WIN32)
+    install(TARGETS Launch workbench_backend workbench_tests RUNTIME DESTINATION .)
+else()
+    install(TARGETS workbench_backend workbench_tests RUNTIME DESTINATION .)
+endif()
 install(DIRECTORY src/frontend DESTINATION src)
 install(DIRECTORY data DESTINATION .)
 install(DIRECTORY docs DESTINATION .)
