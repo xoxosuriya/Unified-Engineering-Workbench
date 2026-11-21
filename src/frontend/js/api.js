@@ -174,7 +174,9 @@ window.API = (function() {
       }
 
       try {
-        const res = await fetch('/api/status', {
+        const baseUrl = getApiBaseUrl();
+        const statusUrl = (baseUrl ? baseUrl : '') + '/api/status';
+        const res = await fetch(statusUrl, {
           headers: { 'Accept': 'application/json' }
         });
         if (res.ok) {
@@ -195,6 +197,10 @@ window.API = (function() {
     init: async function() {
       await checkBackendAvailability();
       startStatusPolling();
+    },
+
+    checkBackendAvailability: function() {
+      return checkBackendAvailability();
     },
 
     isMock: function() {
@@ -450,15 +456,15 @@ window.API = (function() {
     },
 
     thermal3dHealth: function(signal) {
-      return this.thermal3dRequest('/api/thermal3d/health', { timeoutMs: 2500, signal });
+      return this.thermal3dRequest('/api/thermal3d/health', { timeoutMs: 8000, signal });
     },
 
     thermal3dModels: function(signal) {
-      return this.thermal3dRequest('/api/thermal3d/models', { timeoutMs: 3000, signal });
+      return this.thermal3dRequest('/api/thermal3d/models', { timeoutMs: 8000, signal });
     },
 
     thermal3dConfig: function(signal) {
-      return this.thermal3dRequest('/api/thermal3d/config', { timeoutMs: 3000, signal });
+      return this.thermal3dRequest('/api/thermal3d/config', { timeoutMs: 8000, signal });
     },
 
     thermal3dSolve: function(payload, signal) {

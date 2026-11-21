@@ -779,13 +779,23 @@ void HttpServer::handle_client(uintptr_t client_socket) {
                 orig == "http://localhost:8080" ||
                 orig == "http://127.0.0.1:8080") {
                 origin_allowed = true;
-            } else if (orig.find("https://") == 0 && orig.rfind(".vercel.app") != std::string::npos) {
+            } else if (orig.find("https://") == 0 && (orig.rfind(".vercel.app") != std::string::npos || orig.rfind(".onrender.com") != std::string::npos)) {
                 origin_allowed = true;
             } else {
-                const char* env_origs = std::getenv("ALLOWED_ORIGINS");
-                if (env_origs && *env_origs) {
-                    std::string allowed_str(env_origs);
-                    if (allowed_str.find(orig) != std::string::npos) origin_allowed = true;
+                // Allow same-origin requests matching Host header
+                auto host_it_check = req.headers.find("host");
+                if (host_it_check != req.headers.end()) {
+                    std::string h = trim_h(host_it_check->second);
+                    if (orig == "https://" + h || orig == "http://" + h) {
+                        origin_allowed = true;
+                    }
+                }
+                if (!origin_allowed) {
+                    const char* env_origs = std::getenv("ALLOWED_ORIGINS");
+                    if (env_origs && *env_origs) {
+                        std::string allowed_str(env_origs);
+                        if (allowed_str.find(orig) != std::string::npos) origin_allowed = true;
+                    }
                 }
             }
 

@@ -23,7 +23,7 @@ window.CONFIG = {
   githubRepoUrl: 'https://github.com/xoxosuriya/Unified-Engineering-Workbench',
   liveAppUrl: 'https://unified-engineering-workbench-indol.vercel.app/',
   statusPollIntervalMs: 5000,
-  mockTimeoutMs: 1200,
+  mockTimeoutMs: 8000,
   
   // UI animation timings
   openDurationMs: 1050,

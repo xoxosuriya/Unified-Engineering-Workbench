@@ -2,6 +2,12 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "name": "unified-engineering-workbench",
   "cleanUrls": true,
-  "outputDirectory": "src/frontend"
+  "outputDirectory": "src/frontend",
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://unified-engineering-workbench-backend.onrender.com/api/:path*"
+    }
+  ]
 }
 

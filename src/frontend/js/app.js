@@ -62,12 +62,16 @@ window.App = (function() {
       chip.className = 'status-chip offline';
       chip.style.borderColor = '';
       chip.style.color = '';
-      chip.innerHTML = `<span class="chip-dot"></span> <span>BACKEND UNAVAILABLE</span> <button type="button" id="btn-toggle-demo" style="background:none;border:none;color:inherit;text-decoration:underline;cursor:pointer;font-size:10px;margin-left:4px;">(Demo Mode)</button>`;
+      chip.innerHTML = `<span class="chip-dot"></span> <span>CONNECTING TO C++ ENGINE...</span> <button type="button" id="btn-retry-backend-top" style="background:none;border:none;color:inherit;text-decoration:underline;cursor:pointer;font-size:10px;margin-left:4px;">(Retry)</button> <button type="button" id="btn-toggle-demo" style="background:none;border:none;color:inherit;text-decoration:underline;cursor:pointer;font-size:10px;margin-left:4px;">(Demo)</button>`;
+      chip.querySelector('#btn-retry-backend-top')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        API.checkBackendAvailability();
+      });
       chip.querySelector('#btn-toggle-demo')?.addEventListener('click', (e) => {
         e.stopPropagation();
         API.enableDemoMode();
       });
-      if (footerEngine) footerEngine.textContent = 'ENGINE: C++17 (OFFLINE · CLICK DEMO MODE TO SIMULATE)';
+      if (footerEngine) footerEngine.textContent = 'ENGINE: C++17 (CONNECTING TO CLOUD MICROSERVICE · AUTO-RETRIEVING)';
       return;
     }
 
@@ -88,7 +92,8 @@ window.App = (function() {
     chip.style.color = '';
     const cpu = statusData?.cpu_model || 'C++17 Engine';
     const threads = statusData?.hardware_concurrency || 8;
-    const isCloud = (window.location.hostname || '').endsWith('github.io');
+    const hostname = window.location.hostname || '';
+    const isCloud = hostname.endsWith('github.io') || hostname.endsWith('vercel.app') || hostname.endsWith('onrender.com');
     const label = isCloud ? 'PRODUCTION ONLINE' : 'C++17 ONLINE';
 
     chip.className = 'status-chip online';
