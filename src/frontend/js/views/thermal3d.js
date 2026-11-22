@@ -2065,6 +2065,9 @@ window.Thermal3dView = (function() {
       contractHealth = healthRes.data;
       trace.health = healthRes.data;
       backendOnline = true;
+      if (typeof API.setBackendOnline === 'function') {
+        API.setBackendOnline(healthRes.data);
+      }
 
       // Also fetch models & config
       try {
@@ -2101,6 +2104,9 @@ window.Thermal3dView = (function() {
     } catch (err) {
       backendOnline = false;
       backendChecking = false;
+      if (typeof API.setBackendOffline === 'function') {
+        API.setBackendOffline();
+      }
       updateTopBackendChip();
       trace.health_error = err.message;
 

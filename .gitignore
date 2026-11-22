@@ -43,6 +43,22 @@ docs/reports/
 *.tar.gz
 *.bundle
 
+# Private assessment reports, audit logs & deliverables
+*.pdf
+docs/reports/
+docs/*Round2_Report*
+docs/*acceptance*
+docs/*audit*
+docs/assets/
+docs/git_commit_log.txt
+
+# Environment & Credentials
+.env
+.env.*
+*.pem
+*.key
+*.crt
+
 # Third-party dependencies
 third_party/
 

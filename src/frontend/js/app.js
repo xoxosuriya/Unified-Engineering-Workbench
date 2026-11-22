@@ -47,31 +47,36 @@ window.App = (function() {
     await API.init();
 
     // Hook status change
-    API.onStatusChange((statusData, isHealthy, isMock) => {
-      updateStatusChip(statusData, isHealthy, isMock);
+    API.onStatusChange((statusData, isHealthy, isMock, isChecking) => {
+      updateStatusChip(statusData, isHealthy, isMock, isChecking);
     });
   }
 
-  function updateStatusChip(statusData, isHealthy, isMock) {
+  function updateStatusChip(statusData, isHealthy, isMock, isChecking) {
     const chip = document.querySelector('#top-status-chip');
     if (!chip) return;
 
     const footerEngine = document.querySelector('#footer-engine-info');
 
+    if (isChecking && !isHealthy) {
+      chip.className = 'status-chip offline';
+      chip.style.borderColor = '#d97706';
+      chip.style.color = '#d97706';
+      chip.innerHTML = `<span class="chip-dot" style="background-color: #d97706;"></span> <span>Checking C++17 Backend...</span>`;
+      if (footerEngine) footerEngine.textContent = 'ENGINE: C++17 (CONNECTING TO BACKEND...)';
+      return;
+    }
+
     if (!isHealthy) {
       chip.className = 'status-chip offline';
       chip.style.borderColor = '';
       chip.style.color = '';
-      chip.innerHTML = `<span class="chip-dot"></span> <span>CONNECTING TO C++ ENGINE...</span> <button type="button" id="btn-retry-backend-top" style="background:none;border:none;color:inherit;text-decoration:underline;cursor:pointer;font-size:10px;margin-left:4px;">(Retry)</button> <button type="button" id="btn-toggle-demo" style="background:none;border:none;color:inherit;text-decoration:underline;cursor:pointer;font-size:10px;margin-left:4px;">(Demo)</button>`;
-      chip.querySelector('#btn-retry-backend-top')?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        API.checkBackendAvailability();
-      });
+      chip.innerHTML = `<span class="chip-dot"></span> <span>BACKEND UNAVAILABLE</span> <button type="button" id="btn-toggle-demo" style="background:none;border:none;color:inherit;text-decoration:underline;cursor:pointer;font-size:10px;margin-left:4px;">(Demo Mode)</button>`;
       chip.querySelector('#btn-toggle-demo')?.addEventListener('click', (e) => {
         e.stopPropagation();
         API.enableDemoMode();
       });
-      if (footerEngine) footerEngine.textContent = 'ENGINE: C++17 (CONNECTING TO CLOUD MICROSERVICE · AUTO-RETRIEVING)';
+      if (footerEngine) footerEngine.textContent = 'ENGINE: C++17 (OFFLINE · CLICK DEMO MODE TO SIMULATE)';
       return;
     }
 
@@ -88,19 +93,15 @@ window.App = (function() {
       return;
     }
 
+    chip.className = 'status-chip online';
     chip.style.borderColor = '';
     chip.style.color = '';
-    const cpu = statusData?.cpu_model || 'C++17 Engine';
-    const threads = statusData?.hardware_concurrency || 8;
-    const hostname = window.location.hostname || '';
-    const isCloud = hostname.endsWith('github.io') || hostname.endsWith('vercel.app') || hostname.endsWith('onrender.com');
-    const label = isCloud ? 'PRODUCTION ONLINE' : 'C++17 ONLINE';
-
-    chip.className = 'status-chip online';
-    chip.innerHTML = `<span class="chip-dot"></span> <span>${label} &bull; ${cpu} (${threads} threads)</span>`;
+    chip.innerHTML = `<span class="chip-dot"></span> <span>C++17 Backend Online</span>`;
 
     if (footerEngine) {
       const activeBase = API.getThermal3dBaseUrl();
+      const hostname = window.location.hostname || '';
+      const isCloud = hostname.endsWith('github.io') || hostname.endsWith('vercel.app') || hostname.endsWith('onrender.com');
       footerEngine.textContent = `ENGINE: C++17 (${isCloud ? 'Render Web Service' : (activeBase || 'localhost:8080')})`;
     }
   }

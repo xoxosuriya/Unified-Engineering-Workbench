@@ -11,6 +11,9 @@ window.API = (function() {
   let activePort = 8080;
   let statusListeners = [];
   let pollIntervalId = null;
+  let isChecking = false;
+  let backendOnline = false;
+  let lastStatusData = null;
 
   // Check URL query params (?mock=1, ?backend=https://... or ?apiBase=...)
   const urlParams = new URLSearchParams(window.location.search);
@@ -75,39 +78,84 @@ window.API = (function() {
       const mockStatus = await MockBackend.getStatus();
       sessionToken = mockStatus.session_token;
       activePort = mockStatus.active_port;
-      notifyStatus(mockStatus, true);
+      notifyStatus(mockStatus, true, false);
       return false;
     }
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), (window.CONFIG && CONFIG.mockTimeoutMs) || 1500);
+    isChecking = true;
+    notifyStatus(lastStatusData, backendOnline, isChecking);
 
     const baseUrl = getApiBaseUrl();
-    const statusUrl = (baseUrl ? baseUrl : '') + '/api/status';
+    const timeoutMs = (window.CONFIG && CONFIG.mockTimeoutMs) || 8000;
 
+    // 1. Primary authoritative check: /api/thermal3d/health (the real C++17 engine health endpoint)
     try {
-      const res = await fetch(statusUrl, {
+      const healthUrl = (baseUrl ? baseUrl : '') + '/api/thermal3d/health';
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+      const res = await fetch(healthUrl, {
         method: 'GET',
         headers: { 'Accept': 'application/json' },
         signal: controller.signal
       });
-      clearTimeout(timeout);
+      clearTimeout(timeoutId);
+
       if (res.ok) {
         const data = await res.json();
-        sessionToken = data.session_token || null;
-        activePort = data.active_port || 8080;
-        setMockMode(false);
-        notifyStatus(data, true);
-        return true;
+        if (data && data.status === 'ONLINE') {
+          backendOnline = true;
+          isChecking = false;
+          lastStatusData = data;
+          setMockMode(false);
+          notifyStatus(data, true, false);
+
+          // Background non-blocking fetch to populate session token / hardware concurrency if available
+          fetch((baseUrl ? baseUrl : '') + '/api/status', {
+            headers: { 'Accept': 'application/json' }
+          }).then(r => r.ok ? r.json() : null).then(st => {
+            if (st) {
+              sessionToken = st.session_token || sessionToken;
+              activePort = st.active_port || activePort;
+            }
+          }).catch(() => {});
+
+          return true;
+        }
       }
     } catch (e) {
-      // Failed or timed out
-    }
-    clearTimeout(timeout);
+      // Primary check timed out or failed; attempt fallback to /api/status
+      try {
+        const statusUrl = (baseUrl ? baseUrl : '') + '/api/status';
+        const controller2 = new AbortController();
+        const timeoutId2 = setTimeout(() => controller2.abort(), Math.min(timeoutMs, 4000));
 
-    // Truthful offline state: DO NOT silently switch to mock mode in production!
+        const res2 = await fetch(statusUrl, {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' },
+          signal: controller2.signal
+        });
+        clearTimeout(timeoutId2);
+
+        if (res2.ok) {
+          const data2 = await res2.json();
+          sessionToken = data2.session_token || null;
+          activePort = data2.active_port || 8080;
+          backendOnline = true;
+          isChecking = false;
+          lastStatusData = data2;
+          setMockMode(false);
+          notifyStatus(data2, true, false);
+          return true;
+        }
+      } catch (e2) {}
+    }
+
+    // Both checks failed: truthful offline state
+    backendOnline = false;
+    isChecking = false;
     setMockMode(false);
-    notifyStatus(null, false);
+    notifyStatus(null, false, false);
     return false;
   }
 
@@ -120,8 +168,8 @@ window.API = (function() {
     }
   }
 
-  function notifyStatus(statusData, isHealthy) {
-    statusListeners.forEach(fn => fn(statusData, isHealthy, isMock));
+  function notifyStatus(statusData, isHealthy, isCheckingState) {
+    statusListeners.forEach(fn => fn(statusData, isHealthy, isMock, isCheckingState));
   }
 
   async function request(endpoint, options = {}) {
@@ -169,28 +217,11 @@ window.API = (function() {
     pollIntervalId = setInterval(async () => {
       if (isMock) {
         const st = await MockBackend.getStatus();
-        notifyStatus(st, true);
+        notifyStatus(st, true, false);
         return;
       }
-
-      try {
-        const baseUrl = getApiBaseUrl();
-        const statusUrl = (baseUrl ? baseUrl : '') + '/api/status';
-        const res = await fetch(statusUrl, {
-          headers: { 'Accept': 'application/json' }
-        });
-        if (res.ok) {
-          const st = await res.json();
-          sessionToken = st.session_token || sessionToken;
-          activePort = st.active_port || activePort;
-          notifyStatus(st, true);
-        } else {
-          notifyStatus(null, false);
-        }
-      } catch (err) {
-        notifyStatus(null, false);
-      }
-    }, CONFIG.statusPollIntervalMs || 5000);
+      await checkBackendAvailability();
+    }, (window.CONFIG && CONFIG.statusPollIntervalMs) || 6000);
   }
 
   return {
@@ -201,6 +232,24 @@ window.API = (function() {
 
     checkBackendAvailability: function() {
       return checkBackendAvailability();
+    },
+
+    setBackendOnline: function(data) {
+      backendOnline = true;
+      isChecking = false;
+      lastStatusData = data || lastStatusData;
+      setMockMode(false);
+      notifyStatus(lastStatusData, true, false);
+    },
+
+    setBackendOffline: function() {
+      backendOnline = false;
+      isChecking = false;
+      notifyStatus(null, false, false);
+    },
+
+    isBackendOnline: function() {
+      return backendOnline;
     },
 
     isMock: function() {
